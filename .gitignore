@@ -1,1 +1,30 @@
+# AI tooling
+_bmad/
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Dependencies
 node_modules/
+
+# Build output
+src/web/dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

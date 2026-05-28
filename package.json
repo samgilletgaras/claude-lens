@@ -1,0 +1,20 @@
+{
+  "name": "claude-lens",
+  "version": "1.0.0",
+  "description": "Claude Lens",
+  "main": "index.js",
+  "scripts": {
+    "dev:cli": "npm --workspace=src/cli run dev",
+    "dev:web": "npm --workspace=src/web run dev",
+    "dev": "concurrently \"npm run dev:cli\" \"npm run dev:web\""
+  },
+  "workspaces": [
+    "src/cli",
+    "src/web"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

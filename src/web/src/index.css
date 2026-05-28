@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-anthropic-bg: #1e1e1e;
+}
+
+body {
+  @apply bg-zinc-900 text-slate-300 antialiased;
+}
