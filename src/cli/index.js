@@ -157,6 +157,104 @@ async function getLogs(page = 0, pageSize = 10) {
   return { data, total };
 }
 
+function extractSessionTitle(messages) {
+  const firstUser = messages.find(m => m.role === 'user');
+  if (!firstUser) return 'New Session';
+  let raw = '';
+  if (Array.isArray(firstUser.content)) {
+    const tb = firstUser.content.find(b => b.type === 'text');
+    if (tb) raw = tb.text || '';
+  } else if (typeof firstUser.content === 'string') {
+    raw = firstUser.content;
+  }
+  const cmdMatch = raw.match(/<command-message>([\s\S]*?)<\/command-message>/);
+  const localCmdMatch = raw.match(/<command-name>(.*?)<\/command-name>/);
+  if (localCmdMatch) raw = localCmdMatch[1];
+  else if (cmdMatch) raw = cmdMatch[1];
+  else raw = raw.replace(/<[\s\S]*?>/g, '').trim();
+  raw = raw.split('\n')[0].trim().slice(0, 80);
+  return raw || 'New Session';
+}
+
+async function searchSessions(query) {
+  if (!fs.existsSync(PROJECTS_DIR)) return [];
+  const ql = query.toLowerCase();
+  const results = [];
+
+  outer:
+  for (const proj of fs.readdirSync(PROJECTS_DIR)) {
+    if (isTmp(proj)) continue;
+    const pPath = path.join(PROJECTS_DIR, proj);
+    if (!fs.statSync(pPath).isDirectory()) continue;
+    let files;
+    try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); }
+    catch(e) { continue; }
+
+    for (const f of files) {
+      if (results.length >= 20) break outer;
+      const sessionId = f.replace('.jsonl', '');
+      const filePath = path.join(pPath, f);
+      const fileStream = fs.createReadStream(filePath);
+      const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+
+      let excerpt = null;
+      let lastUpdated = 0;
+      const messages = [];
+
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        if (!line.toLowerCase().includes(ql)) {
+          try {
+            const p = JSON.parse(line);
+            if (p.timestamp) {
+              const t = new Date(p.timestamp).getTime();
+              if (t > lastUpdated) lastUpdated = t;
+            }
+            if (p.type === 'user' || p.type === 'assistant') {
+              messages.push({ role: p.type === 'user' ? 'user' : 'assistant', content: p.message?.content || p.content || '', timestamp: lastUpdated });
+            }
+          } catch(e) {}
+          continue;
+        }
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.timestamp) {
+            const t = new Date(parsed.timestamp).getTime();
+            if (t > lastUpdated) lastUpdated = t;
+          }
+          if (parsed.type === 'user' || parsed.type === 'assistant') {
+            messages.push({ role: parsed.type === 'user' ? 'user' : 'assistant', content: parsed.message?.content || parsed.content || '', timestamp: lastUpdated });
+          }
+          if (!excerpt && (parsed.type === 'user' || parsed.type === 'assistant')) {
+            const content = parsed.message?.content || parsed.content || '';
+            let text = '';
+            if (Array.isArray(content)) {
+              const tb = content.find(b => b.type === 'text');
+              if (tb) text = tb.text || '';
+            } else if (typeof content === 'string') {
+              text = content;
+            }
+            text = text.replace(/<[\s\S]*?>/g, ' ').replace(/\s+/g, ' ').trim();
+            const idx = text.toLowerCase().indexOf(ql);
+            if (idx !== -1) {
+              const start = Math.max(0, idx - 60);
+              const end = Math.min(text.length, idx + query.length + 120);
+              excerpt = (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+            }
+          }
+        } catch(e) {}
+      }
+
+      if (excerpt) {
+        const title = extractSessionTitle(messages);
+        results.push({ project: proj, sessionId, title, excerpt, lastUpdated });
+      }
+    }
+  }
+
+  return results.sort((a, b) => b.lastUpdated - a.lastUpdated);
+}
+
 async function getStats() {
   if (!fs.existsSync(PROJECTS_DIR)) {
     return {
@@ -561,6 +659,14 @@ const server = http.createServer(async (req, res) => {
       const { data, total } = await getLogs(page, pageSize);
       ok({ data, total, page, pageSize });
     } catch(e) { err(e.message); }
+    return;
+  }
+
+  if (q.pathname === '/api/search') {
+    const query = q.get('q', '').trim();
+    if (query.length < 2) { ok({ data: [] }); return; }
+    try { ok({ data: await searchSessions(query) }); }
+    catch(e) { err(e.message); }
     return;
   }
 

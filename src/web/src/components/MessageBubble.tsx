@@ -2,11 +2,33 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Message, Block, AttachmentContent } from '../types';
-import { ChevronDown, ChevronRight, BrainCircuit, Play, CheckCircle2, XCircle, Terminal, Activity, Zap, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronRight, BrainCircuit, Play, CheckCircle2, XCircle, Terminal, Activity, Zap, AlertTriangle, Copy, Check } from 'lucide-react';
+import { formatRelative } from '../utils';
 
 function formatTime(timestamp?: number) {
   if (!timestamp) return '';
-  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return formatRelative(timestamp);
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      title="Copy to clipboard"
+      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+    >
+      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+      {copied ? 'Copied' : 'Copy'}
+    </button>
+  );
 }
 
 function MarkdownBlock({ text }: { text: string }) {
@@ -21,14 +43,17 @@ function MarkdownBlock({ text }: { text: string }) {
           <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#1d1d21] to-transparent pointer-events-none" />
         )}
       </div>
-      {isLong && (
-        <button 
-          onClick={() => setExpanded(!expanded)} 
-          className="absolute top-2 right-2 px-2 py-1 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded text-[10px] font-semibold tracking-wider transition-colors z-10"
-        >
-          {expanded ? 'COLLAPSE' : 'EXPAND'}
-        </button>
-      )}
+      <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+        <CopyButton text={text} />
+        {isLong && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="px-2 py-0.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded text-[10px] font-semibold tracking-wider transition-colors"
+          >
+            {expanded ? 'COLLAPSE' : 'EXPAND'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -66,9 +91,17 @@ function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isComm
           <div className="pl-6 pb-2 pt-1 relative">
              <div className="absolute left-1.5 top-0 bottom-0 w-px bg-zinc-800/40" />
              {useMarkdown && typeof content === 'string' ? (
-                <div className="text-[12px] bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/60 shadow-inner">
+                <div className="text-[12px] bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/60 shadow-inner relative">
+                  <div className="absolute top-2 right-2"><CopyButton text={content} /></div>
                   <div className="prose prose-invert prose-zinc max-w-none prose-sm prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-p:leading-snug prose-li:leading-snug text-zinc-400">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                  </div>
+                </div>
+             ) : typeof content === 'string' ? (
+                <div className="relative">
+                  <div className="absolute top-2 right-2 z-10"><CopyButton text={content} /></div>
+                  <div className="text-[10px] text-zinc-400 max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-zinc-950/80 p-3 pr-16 rounded-md border border-zinc-800/80 shadow-inner">
+                    {content}
                   </div>
                 </div>
              ) : (

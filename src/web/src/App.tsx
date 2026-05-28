@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { Conversation, ProjectSummary } from './types';
 import { MessageBubble } from './components/MessageBubble';
-import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug } from 'lucide-react';
+import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug, Search } from 'lucide-react';
 import { LogsViewer } from './components/LogsViewer';
 import { SkillsViewer } from './components/SkillsViewer';
 import { MCPsViewer } from './components/MCPsViewer';
-import { prettifyProjectName } from './utils';
+import { SearchView } from './components/SearchView';
+import { prettifyProjectName, formatRelative } from './utils';
 
 const SESSION_PAGE_SIZE = 20;
 
@@ -14,15 +15,15 @@ function App() {
   const [sessions, setSessions] = useState<Conversation[]>([]);
   const [sessionsTotal, setSessionsTotal] = useState(0);
   const [sessionsPage, setSessionsPage] = useState(0);
-  // Track what was last successfully loaded to derive loading state
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'history' | 'logs' | 'skills' | 'mcps'>('history');
+  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<'history' | 'logs' | 'skills' | 'mcps' | 'search'>('history');
+  const [sessionSort, setSessionSort] = useState<'newest' | 'oldest'>('newest');
   const [error, setError] = useState<string | null>(null);
 
-  // Load project list on mount — fast, file-stat only
   useEffect(() => {
     fetch('/api/projects')
       .then(res => res.json())
@@ -33,7 +34,6 @@ function App() {
       .catch(err => setError(err.message));
   }, []);
 
-  // Load sessions when project or page changes
   useEffect(() => {
     if (!activeProjectId) return;
     const key = `${activeProjectId}:${sessionsPage}`;
@@ -41,9 +41,17 @@ function App() {
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
-        setSessions(res.data || []);
+        const data: Conversation[] = res.data || [];
+        setSessions(data);
         setSessionsTotal(res.total || 0);
         setLoadedKey(key);
+        if (pendingSessionId) {
+          const found = data.find(c => c.id === pendingSessionId);
+          if (found) {
+            setActiveSessionId(pendingSessionId);
+            setPendingSessionId(null);
+          }
+        }
       })
       .catch(() => setLoadedKey(key));
   }, [activeProjectId, sessionsPage]);
@@ -52,6 +60,8 @@ function App() {
   const sessionsLoading = currentKey !== null && loadedKey !== currentKey;
   const activeConv = sessions.find(c => c.id === activeSessionId) ?? null;
   const sessionsTotalPages = Math.ceil(sessionsTotal / SESSION_PAGE_SIZE);
+
+  const sortedSessions = sessionSort === 'oldest' ? [...sessions].reverse() : sessions;
 
   function openProject(id: string) {
     setActiveProjectId(id);
@@ -67,6 +77,13 @@ function App() {
     setSessions([]);
     setSessionsPage(0);
     setLoadedKey(null);
+    setPendingSessionId(null);
+  }
+
+  function navigateToSession(project: string, sessionId: string) {
+    setCurrentView('history');
+    setPendingSessionId(sessionId);
+    openProject(project);
   }
 
   return (
@@ -96,6 +113,12 @@ function App() {
                 <MessageSquare className="w-4 h-4 mr-2 shrink-0" /> Chat History
               </button>
               <button
+                onClick={() => { setCurrentView('search'); closeProject(); }}
+                className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center ${currentView === 'search' ? 'bg-zinc-800/60 text-slate-200' : 'text-zinc-400 hover:text-slate-200 hover:bg-zinc-800/30'}`}
+              >
+                <Search className="w-4 h-4 mr-2 shrink-0" /> Search
+              </button>
+              <button
                 onClick={() => { setCurrentView('logs'); closeProject(); }}
                 className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center ${currentView === 'logs' ? 'bg-zinc-800/60 text-slate-200' : 'text-zinc-400 hover:text-slate-200 hover:bg-zinc-800/30'}`}
               >
@@ -122,10 +145,24 @@ function App() {
 
           {activeProjectId !== null && (
             <div className="flex flex-col h-full">
+              <div className="shrink-0 border-b border-zinc-800/50 px-2 py-1.5 flex items-center gap-1">
+                <button
+                  onClick={() => setSessionSort('newest')}
+                  className={`flex-1 text-[10px] px-2 py-1 rounded transition-colors ${sessionSort === 'newest' ? 'bg-zinc-800 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  ↓ Newest
+                </button>
+                <button
+                  onClick={() => setSessionSort('oldest')}
+                  className={`flex-1 text-[10px] px-2 py-1 rounded transition-colors ${sessionSort === 'oldest' ? 'bg-zinc-800 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  ↑ Oldest
+                </button>
+              </div>
 
               <div className="flex-1 overflow-y-auto">
                 {sessionsLoading && <div className="p-4 text-zinc-500 text-sm">Loading sessions...</div>}
-                {!sessionsLoading && sessions.map(conv => {
+                {!sessionsLoading && sortedSessions.map(conv => {
                   const isActive = activeSessionId === conv.id;
                   let firstText = 'New Session';
                   const firstUserMsg = conv.messages.find(m => m.role === 'user');
@@ -156,7 +193,7 @@ function App() {
                       </div>
                       <div className="mt-2 text-[10px] text-zinc-500 flex items-center">
                         <Clock className="w-3 h-3 mr-1" />
-                        {new Date(conv.lastUpdated).toLocaleDateString()} {new Date(conv.lastUpdated).toLocaleTimeString()}
+                        {formatRelative(conv.lastUpdated)}
                       </div>
                     </button>
                   );
@@ -194,6 +231,8 @@ function App() {
           <SkillsViewer />
         ) : currentView === 'mcps' ? (
           <MCPsViewer />
+        ) : currentView === 'search' ? (
+          <SearchView onNavigate={navigateToSession} />
         ) : activeProjectId === null ? (
           <div className="flex-1 overflow-y-auto w-full p-8">
             <h2 className="text-2xl font-semibold mb-6 flex items-center"><FolderOpen className="mr-3 text-amber-500" /> Select a Project</h2>
@@ -208,7 +247,7 @@ function App() {
                   <div className="text-xs text-zinc-500 truncate mb-4" title={proj.fullPath}>{proj.fullPath}</div>
                   <div className="mt-auto flex items-center justify-between text-xs text-zinc-400">
                     <span>{proj.sessionCount} Sessions</span>
-                    <span>{proj.lastUpdated ? new Date(proj.lastUpdated).toLocaleDateString() : 'Never'}</span>
+                    <span>{proj.lastUpdated ? formatRelative(proj.lastUpdated) : 'Never'}</span>
                   </div>
                 </button>
               ))}
