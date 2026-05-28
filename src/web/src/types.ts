@@ -47,6 +47,9 @@ export interface Skill {
   name: string;
   description: string | null;
   hasSkillMd: boolean;
+  trigger: string | null;
+  totalCalls: number;
+  lastUsed: number | null;
 }
 
 export interface SkillDetail {
@@ -62,4 +65,25 @@ export interface LogEntry {
   session: string;
   lineNumber: number;
   raw: Record<string, unknown>;
+}
+
+export interface MCPServer {
+  id: string;
+  name: string;
+  type: 'plugin' | 'cloud';
+  config: { command?: string; args?: string[]; type?: string; url?: string } | null;
+  toolCount: number;
+  totalCalls: number;
+  lastUsed: number | null;
+  auth?: { authenticated: boolean; timestamp: number };
+}
+
+export interface MCPTool {
+  name: string;
+  count: number;
+  lastUsed: number | null;
+}
+
+export interface MCPServerDetail extends MCPServer {
+  tools: MCPTool[];
 }

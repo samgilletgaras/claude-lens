@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3000;
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects');
 const SKILLS_DIR = path.join(CLAUDE_DIR, 'skills');
+const MCP_PLUGINS_DIR = path.join(CLAUDE_DIR, 'plugins/marketplaces/claude-plugins-official/external_plugins');
 
 function isTmp(name) {
   return name === 'tmp' || name.endsWith('-tmp') || name.includes('tmp');
@@ -156,8 +157,46 @@ async function getLogs(page = 0, pageSize = 10) {
   return { data, total };
 }
 
+async function scanSkillUsage() {
+  const usage = {};
+  if (!fs.existsSync(PROJECTS_DIR)) return usage;
+  for (const proj of fs.readdirSync(PROJECTS_DIR)) {
+    if (isTmp(proj)) continue;
+    const pPath = path.join(PROJECTS_DIR, proj);
+    if (!fs.statSync(pPath).isDirectory()) continue;
+    let files;
+    try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); }
+    catch(e) { continue; }
+    for (const f of files) {
+      const filePath = path.join(pPath, f);
+      const fileStream = fs.createReadStream(filePath);
+      const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+      for await (const line of rl) {
+        if (!line.includes('"Skill"')) continue;
+        try {
+          const parsed = JSON.parse(line);
+          const tstamp = parsed.timestamp ? new Date(parsed.timestamp).getTime() : 0;
+          const content = parsed.message?.content;
+          if (!Array.isArray(content)) continue;
+          for (const block of content) {
+            if (block?.type !== 'tool_use' || block.name !== 'Skill') continue;
+            const slug = block.input?.skill;
+            if (typeof slug !== 'string' || !slug) continue;
+            if (!usage[slug]) usage[slug] = { totalCalls: 0, lastUsed: 0 };
+            usage[slug].totalCalls++;
+            if (tstamp > usage[slug].lastUsed) usage[slug].lastUsed = tstamp;
+          }
+        } catch(e) {}
+      }
+    }
+  }
+  return usage;
+}
+
 async function getSkills() {
   if (!fs.existsSync(SKILLS_DIR)) return [];
+
+  const [usageMap] = await Promise.all([scanSkillUsage()]);
 
   const skills = [];
   for (const entry of fs.readdirSync(SKILLS_DIR)) {
@@ -167,6 +206,7 @@ async function getSkills() {
     const skillMdPath = path.join(entryPath, 'SKILL.md');
     let description = null;
     let hasSkillMd = false;
+    let trigger = null;
 
     if (fs.existsSync(skillMdPath)) {
       hasSkillMd = true;
@@ -183,13 +223,141 @@ async function getSkills() {
           }
         }
       }
+      if (meta.trigger) trigger = meta.trigger;
     }
 
     const name = entry.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    skills.push({ slug: entry, name, description, hasSkillMd });
+    const u = usageMap[entry];
+    skills.push({
+      slug: entry,
+      name,
+      description,
+      hasSkillMd,
+      trigger,
+      totalCalls: u ? u.totalCalls : 0,
+      lastUsed: u ? u.lastUsed || null : null,
+    });
   }
 
-  return skills.sort((a, b) => a.slug.localeCompare(b.slug));
+  return skills.sort((a, b) => b.totalCalls - a.totalCalls || a.slug.localeCompare(b.slug));
+}
+
+function getMcpPluginConfigs() {
+  const configs = {};
+  if (!fs.existsSync(MCP_PLUGINS_DIR)) return configs;
+  for (const dir of fs.readdirSync(MCP_PLUGINS_DIR)) {
+    const mcpJsonPath = path.join(MCP_PLUGINS_DIR, dir, '.mcp.json');
+    if (!fs.existsSync(mcpJsonPath)) continue;
+    try {
+      const raw = JSON.parse(fs.readFileSync(mcpJsonPath, 'utf8'));
+      const servers = raw.mcpServers || raw;
+      for (const [serverId, cfg] of Object.entries(servers)) {
+        if (typeof cfg !== 'object' || !cfg) continue;
+        configs[serverId] = { command: cfg.command, args: cfg.args, type: cfg.type, url: cfg.url, dirName: dir };
+      }
+    } catch(e) {}
+  }
+  return configs;
+}
+
+async function scanMcpUsage() {
+  const usage = {};
+  if (!fs.existsSync(PROJECTS_DIR)) return usage;
+  for (const proj of fs.readdirSync(PROJECTS_DIR)) {
+    if (isTmp(proj)) continue;
+    const pPath = path.join(PROJECTS_DIR, proj);
+    if (!fs.statSync(pPath).isDirectory()) continue;
+    let files;
+    try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); }
+    catch(e) { continue; }
+    for (const f of files) {
+      const filePath = path.join(pPath, f);
+      const fileStream = fs.createReadStream(filePath);
+      const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+      for await (const line of rl) {
+        if (!line.includes('"mcp__')) continue;
+        try {
+          const parsed = JSON.parse(line);
+          const tstamp = parsed.timestamp ? new Date(parsed.timestamp).getTime() : 0;
+          const content = parsed.message?.content;
+          if (!Array.isArray(content)) continue;
+          for (const block of content) {
+            if (block?.type !== 'tool_use') continue;
+            const name = block.name;
+            if (typeof name !== 'string' || !name.startsWith('mcp__')) continue;
+            const withoutPrefix = name.slice(5);
+            const sep = withoutPrefix.indexOf('__');
+            if (sep === -1) continue;
+            const serverId = withoutPrefix.slice(0, sep);
+            const toolName = withoutPrefix.slice(sep + 2);
+            if (!usage[serverId]) usage[serverId] = { tools: {}, totalCalls: 0, lastUsed: 0 };
+            const entry = usage[serverId];
+            entry.totalCalls++;
+            if (tstamp > entry.lastUsed) entry.lastUsed = tstamp;
+            if (!entry.tools[toolName]) entry.tools[toolName] = { count: 0, lastUsed: 0 };
+            entry.tools[toolName].count++;
+            if (tstamp > entry.tools[toolName].lastUsed) entry.tools[toolName].lastUsed = tstamp;
+          }
+        } catch(e) {}
+      }
+    }
+  }
+  return usage;
+}
+
+function mcpServerName(serverId) {
+  if (serverId.startsWith('claude_ai_')) return serverId.slice(10).replace(/_/g, ' ');
+  return serverId.charAt(0).toUpperCase() + serverId.slice(1);
+}
+
+async function getMcps(serverId = null) {
+  const [pluginConfigs, usageMap] = await Promise.all([
+    Promise.resolve(getMcpPluginConfigs()),
+    scanMcpUsage(),
+  ]);
+
+  const authCache = {};
+  const authCachePath = path.join(CLAUDE_DIR, 'mcp-needs-auth-cache.json');
+  if (fs.existsSync(authCachePath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(authCachePath, 'utf8'));
+      for (const [k, v] of Object.entries(raw)) authCache[k] = v;
+    } catch(e) {}
+  }
+
+  const serverIds = new Set([...Object.keys(pluginConfigs), ...Object.keys(usageMap)]);
+  const servers = [];
+  for (const id of serverIds) {
+    if (serverId && id !== serverId) continue;
+    const cfg = pluginConfigs[id] || null;
+    const usage = usageMap[id] || null;
+    const isClaude = id.startsWith('claude_ai_');
+    const name = mcpServerName(id);
+    const authKey = isClaude ? `claude.ai ${name}` : null;
+    const auth = authKey && authCache[authKey]
+      ? { authenticated: true, timestamp: authCache[authKey].timestamp }
+      : undefined;
+    const toolsArr = usage
+      ? Object.entries(usage.tools)
+          .map(([n, t]) => ({ name: n, count: t.count, lastUsed: t.lastUsed || null }))
+          .sort((a, b) => b.count - a.count)
+      : [];
+    const entry = {
+      id,
+      name,
+      type: isClaude ? 'cloud' : 'plugin',
+      config: cfg ? { command: cfg.command, args: cfg.args, type: cfg.type, url: cfg.url } : null,
+      toolCount: toolsArr.length,
+      totalCalls: usage ? usage.totalCalls : 0,
+      lastUsed: usage ? usage.lastUsed || null : null,
+      ...(auth ? { auth } : {}),
+      ...(serverId ? { tools: toolsArr } : {}),
+    };
+    servers.push(entry);
+  }
+
+  if (serverId) return servers[0] || null;
+  return servers.sort((a, b) => b.totalCalls - a.totalCalls || a.name.localeCompare(b.name));
 }
 
 function parseQuery(url) {
@@ -281,6 +449,16 @@ const server = http.createServer(async (req, res) => {
     try {
       const { data, total } = await getLogs(page, pageSize);
       ok({ data, total, page, pageSize });
+    } catch(e) { err(e.message); }
+    return;
+  }
+
+  if (q.pathname === '/api/mcps') {
+    const server = q.get('server', null);
+    try {
+      const data = await getMcps(server || null);
+      if (server && !data) { err('Server not found'); return; }
+      ok({ data });
     } catch(e) { err(e.message); }
     return;
   }

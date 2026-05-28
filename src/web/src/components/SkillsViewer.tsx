@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Layers, ArrowLeft, Search } from 'lucide-react';
+import { Layers, ArrowLeft, Search, Zap } from 'lucide-react';
 import type { Skill, SkillDetail } from '../types';
 
 const META_LABEL: Record<string, string> = {
@@ -12,6 +12,11 @@ const META_LABEL: Record<string, string> = {
 
 function metaLabel(key: string) {
   return META_LABEL[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function formatDate(ts: number | null) {
+  if (!ts) return null;
+  return new Date(ts).toLocaleDateString();
 }
 
 export function SkillsViewer() {
@@ -75,8 +80,17 @@ export function SkillsViewer() {
 
           {contentLoading && <p className="text-zinc-500 text-sm">Loading...</p>}
 
-          {!contentLoading && metaEntries.length > 0 && (
+          {!contentLoading && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 space-y-2">
+              <div className="flex gap-4 text-sm border-b border-zinc-800 pb-2 mb-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500 min-w-[80px] pt-0.5 shrink-0">Usage</span>
+                <span className="text-slate-300">
+                  {selectedSkill.totalCalls > 0
+                    ? <>{selectedSkill.totalCalls.toLocaleString()} calls{selectedSkill.lastUsed ? <span className="text-zinc-500"> · Last used {formatDate(selectedSkill.lastUsed)}</span> : null}</>
+                    : <span className="text-zinc-500 italic">Never used</span>
+                  }
+                </span>
+              </div>
               {metaEntries.map(([key, val]) => (
                 <div key={key} className="flex gap-4 text-sm">
                   <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500 min-w-[80px] pt-0.5 shrink-0">
@@ -154,7 +168,15 @@ export function SkillsViewer() {
           </div>
         </div>
         <p className="text-zinc-500 text-sm mb-6">
-          {q ? `${filtered.length} of ${skills.length} skills` : `${skills.length} skills installed`}
+          {q
+            ? `${filtered.length} of ${skills.length} skills`
+            : (() => {
+                const used = skills.filter(s => s.totalCalls > 0).length;
+                return used > 0
+                  ? `${used} of ${skills.length} skills used`
+                  : `${skills.length} skills installed`;
+              })()
+          }
         </p>
         {filtered.length === 0 ? (
           <p className="text-zinc-500 text-sm">No skills match &ldquo;{search}&rdquo;</p>
@@ -166,16 +188,30 @@ export function SkillsViewer() {
                 onClick={() => openSkill(skill)}
                 className="bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-lg p-4 text-left transition-colors flex flex-col"
               >
-                <div className="font-medium text-slate-200">{skill.name}</div>
-                <div className="font-mono text-[10px] text-zinc-600 mt-0.5">{skill.slug}</div>
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span className="font-medium text-slate-200">{skill.name}</span>
+                  {skill.trigger && (
+                    <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800/50 font-mono">
+                      <Zap className="w-2.5 h-2.5" />{skill.trigger}
+                    </span>
+                  )}
+                </div>
+                <div className="font-mono text-[10px] text-zinc-600 mb-2">{skill.slug}</div>
                 {skill.description ? (
-                  <p className="text-zinc-500 text-xs mt-2 flex-1 line-clamp-2">{skill.description}</p>
+                  <p className="text-zinc-500 text-xs flex-1 line-clamp-2">{skill.description}</p>
                 ) : (
-                  <p className="text-zinc-700 text-xs mt-2 flex-1 italic">No description</p>
+                  <p className="text-zinc-700 text-xs flex-1 italic">No description</p>
                 )}
-                {!skill.hasSkillMd && (
-                  <span className="text-zinc-600 text-[10px] mt-2">no SKILL.md</span>
-                )}
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  {skill.totalCalls > 0 ? (
+                    <>
+                      <span className="text-zinc-400">{skill.totalCalls.toLocaleString()} calls</span>
+                      <span className="text-zinc-600">{formatDate(skill.lastUsed)}</span>
+                    </>
+                  ) : (
+                    <span className="text-zinc-700 italic">Never used</span>
+                  )}
+                </div>
               </button>
             ))}
           </div>

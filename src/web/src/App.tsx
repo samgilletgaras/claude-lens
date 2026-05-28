@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { Conversation, ProjectSummary } from './types';
 import { MessageBubble } from './components/MessageBubble';
-import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers } from 'lucide-react';
+import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug } from 'lucide-react';
 import { LogsViewer } from './components/LogsViewer';
 import { SkillsViewer } from './components/SkillsViewer';
+import { MCPsViewer } from './components/MCPsViewer';
 import { prettifyProjectName } from './utils';
 
 const SESSION_PAGE_SIZE = 20;
@@ -18,7 +19,7 @@ function App() {
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'history' | 'logs' | 'skills'>('history');
+  const [currentView, setCurrentView] = useState<'history' | 'logs' | 'skills' | 'mcps'>('history');
   const [error, setError] = useState<string | null>(null);
 
   // Load project list on mount — fast, file-stat only
@@ -106,6 +107,12 @@ function App() {
               >
                 <Layers className="w-4 h-4 mr-2 shrink-0" /> Skills
               </button>
+              <button
+                onClick={() => { setCurrentView('mcps'); closeProject(); }}
+                className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center ${currentView === 'mcps' ? 'bg-zinc-800/60 text-slate-200' : 'text-zinc-400 hover:text-slate-200 hover:bg-zinc-800/30'}`}
+              >
+                <Plug className="w-4 h-4 mr-2 shrink-0" /> MCPs
+              </button>
             </>
           )}
         </div>
@@ -185,6 +192,8 @@ function App() {
           <LogsViewer />
         ) : currentView === 'skills' ? (
           <SkillsViewer />
+        ) : currentView === 'mcps' ? (
+          <MCPsViewer />
         ) : activeProjectId === null ? (
           <div className="flex-1 overflow-y-auto w-full p-8">
             <h2 className="text-2xl font-semibold mb-6 flex items-center"><FolderOpen className="mr-3 text-amber-500" /> Select a Project</h2>
