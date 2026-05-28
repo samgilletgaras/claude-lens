@@ -157,6 +157,117 @@ async function getLogs(page = 0, pageSize = 10) {
   return { data, total };
 }
 
+async function getStats() {
+  if (!fs.existsSync(PROJECTS_DIR)) {
+    return {
+      totals: { sessions: 0, messages: 0, toolCalls: 0 },
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0 },
+      stopReasons: {},
+      models: {},
+      hooks: { success: 0, failure: 0, avgDurationMs: 0 },
+      topProjects: [],
+    };
+  }
+
+  let sessions = 0;
+  let messages = 0;
+  let toolCalls = 0;
+  let tokInput = 0, tokOutput = 0, tokCacheRead = 0, tokCacheCreation = 0;
+  const stopReasons = {};
+  const models = {};
+  let hookSuccess = 0, hookFailure = 0, hookDurationTotal = 0, hookCount = 0;
+  const projectStats = {};
+
+  for (const proj of fs.readdirSync(PROJECTS_DIR)) {
+    if (isTmp(proj)) continue;
+    const pPath = path.join(PROJECTS_DIR, proj);
+    if (!fs.statSync(pPath).isDirectory()) continue;
+    let files;
+    try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); }
+    catch(e) { continue; }
+
+    sessions += files.length;
+    if (!projectStats[proj]) projectStats[proj] = { messageCount: 0, tokenCount: 0 };
+
+    for (const f of files) {
+      const filePath = path.join(pPath, f);
+      const fileStream = fs.createReadStream(filePath);
+      const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        const isAssistant = line.includes('"assistant"');
+        const isAttachment = line.includes('"attachment"');
+        const isUser = line.includes('"user"');
+        if (!isAssistant && !isAttachment && !isUser) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type === 'user') {
+            messages++;
+            projectStats[proj].messageCount++;
+          } else if (parsed.type === 'assistant') {
+            messages++;
+            projectStats[proj].messageCount++;
+            const msg = parsed.message;
+            if (!msg) continue;
+            if (msg.model) models[msg.model] = (models[msg.model] || 0) + 1;
+            if (msg.stop_reason) stopReasons[msg.stop_reason] = (stopReasons[msg.stop_reason] || 0) + 1;
+            const u = msg.usage;
+            if (u) {
+              const inp = u.input_tokens || 0;
+              const out = u.output_tokens || 0;
+              const cr = u.cache_read_input_tokens || 0;
+              const cc = u.cache_creation_input_tokens || 0;
+              tokInput += inp;
+              tokOutput += out;
+              tokCacheRead += cr;
+              tokCacheCreation += cc;
+              projectStats[proj].tokenCount += inp + out;
+            }
+            if (Array.isArray(msg.content)) {
+              for (const block of msg.content) {
+                if (block?.type === 'tool_use') toolCalls++;
+              }
+            }
+          } else if (parsed.type === 'attachment') {
+            const att = parsed.attachment;
+            if (!att) continue;
+            if (att.type === 'hook_success') {
+              hookSuccess++;
+              if (typeof att.durationMs === 'number') {
+                hookDurationTotal += att.durationMs;
+                hookCount++;
+              }
+            } else if (att.type === 'hook_failure') {
+              hookFailure++;
+            }
+          }
+        } catch(e) {}
+      }
+    }
+  }
+
+  const totalCacheTokens = tokInput + tokCacheRead + tokCacheCreation;
+  const cacheHitRate = totalCacheTokens > 0 ? Math.round((tokCacheRead / totalCacheTokens) * 100) : 0;
+
+  const topProjects = Object.entries(projectStats)
+    .sort((a, b) => b[1].messageCount - a[1].messageCount)
+    .slice(0, 5)
+    .map(([id, s]) => ({ id, messageCount: s.messageCount, tokenCount: s.tokenCount }));
+
+  return {
+    totals: { sessions, messages, toolCalls },
+    tokens: { input: tokInput, output: tokOutput, cacheRead: tokCacheRead, cacheCreation: tokCacheCreation, cacheHitRate },
+    stopReasons,
+    models,
+    hooks: {
+      success: hookSuccess,
+      failure: hookFailure,
+      avgDurationMs: hookCount > 0 ? Math.round(hookDurationTotal / hookCount) : 0,
+    },
+    topProjects,
+  };
+}
+
 async function scanSkillUsage() {
   const usage = {};
   if (!fs.existsSync(PROJECTS_DIR)) return usage;
@@ -450,6 +561,12 @@ const server = http.createServer(async (req, res) => {
       const { data, total } = await getLogs(page, pageSize);
       ok({ data, total, page, pageSize });
     } catch(e) { err(e.message); }
+    return;
+  }
+
+  if (q.pathname === '/api/stats') {
+    try { ok({ data: await getStats() }); }
+    catch(e) { err(e.message); }
     return;
   }
 

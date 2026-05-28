@@ -87,3 +87,12 @@ export interface MCPTool {
 export interface MCPServerDetail extends MCPServer {
   tools: MCPTool[];
 }
+
+export interface DiagnosticsStats {
+  totals: { sessions: number; messages: number; toolCalls: number };
+  tokens: { input: number; output: number; cacheRead: number; cacheCreation: number; cacheHitRate: number };
+  stopReasons: Record<string, number>;
+  models: Record<string, number>;
+  hooks: { success: number; failure: number; avgDurationMs: number };
+  topProjects: { id: string; messageCount: number; tokenCount: number }[];
+}
