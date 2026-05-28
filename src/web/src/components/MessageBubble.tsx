@@ -23,7 +23,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={handleCopy}
       title="Copy to clipboard"
-      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-lens-border hover:bg-lens-hover text-lens-text-sub hover:text-lens-text transition-colors"
     >
       {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
       {copied ? 'Copied' : 'Copy'}
@@ -36,11 +36,11 @@ function MarkdownBlock({ text }: { text: string }) {
   const isLong = text.length > 400 || text.split('\n').length > 10;
   
   return (
-    <div className="relative group bg-zinc-800/20 border border-zinc-800/60 rounded-xl p-4 md:p-6 relative">
-      <div className={`prose prose-invert prose-zinc max-w-none prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-code:text-amber-200/90 text-slate-300 ${!expanded && isLong ? 'line-clamp-6 relative' : ''}`}>
+    <div className="relative group bg-lens-border/20 border border-lens-border/60 rounded-xl p-4 md:p-6 relative">
+      <div className={`prose prose-invert prose-zinc max-w-none prose-pre:bg-lens-deep prose-pre:border prose-pre:border-lens-border prose-code:text-amber-200/90 text-lens-text-body ${!expanded && isLong ? 'line-clamp-6 relative' : ''}`}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
         {!expanded && isLong && (
-          <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-[#1d1d21] to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-lens-bg to-transparent pointer-events-none" />
         )}
       </div>
       <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
@@ -48,7 +48,7 @@ function MarkdownBlock({ text }: { text: string }) {
         {isLong && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="px-2 py-0.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded text-[10px] font-semibold tracking-wider transition-colors"
+            className="px-2 py-0.5 bg-lens-border/80 hover:bg-lens-hover text-lens-text-sub hover:text-lens-text rounded text-[10px] font-semibold tracking-wider transition-colors"
           >
             {expanded ? 'COLLAPSE' : 'EXPAND'}
           </button>
@@ -66,14 +66,14 @@ function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isComm
   
   return (
     <div className="relative flex w-full mb-2 group items-start">
-      <div className="absolute left-[7px] top-0 bottom-0 w-px bg-zinc-800/40" />
+      <div className="absolute left-[7px] top-0 bottom-0 w-px bg-lens-border/40" />
 
-      <div className="w-4 h-5 shrink-0 flex items-center justify-center bg-anthropic-bg relative z-20">
-        <div className={`w-2 h-2 rounded-full ${dotColor} ring-2 ring-anthropic-bg opacity-80 group-hover:opacity-100 transition-opacity`} />
+      <div className="w-4 h-5 shrink-0 flex items-center justify-center bg-lens-bg relative z-20">
+        <div className={`w-2 h-2 rounded-full ${dotColor} ring-2 ring-lens-bg opacity-80 group-hover:opacity-100 transition-opacity`} />
       </div>
 
       {timestamp && (
-        <div className="absolute right-0 top-0 text-[10px] text-zinc-600 font-mono">
+        <div className="absolute right-0 top-0 text-[10px] text-lens-text-faint font-mono">
           {formatTime(timestamp)}
         </div>
       )}
@@ -91,23 +91,23 @@ function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isComm
         
         {expanded && hasContent && (
           <div className="pl-6 pb-2 pt-1 relative">
-             <div className="absolute left-1.5 top-0 bottom-0 w-px bg-zinc-800/40" />
+             <div className="absolute left-1.5 top-0 bottom-0 w-px bg-lens-border/40" />
              {useMarkdown && typeof content === 'string' ? (
-                <div className="text-[12px] bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/60 shadow-inner relative">
+                <div className="text-[12px] bg-lens-surface/50 p-4 rounded-xl border border-lens-border/60 shadow-inner relative">
                   <div className="absolute top-2 right-2"><CopyButton text={content} /></div>
-                  <div className="prose prose-invert prose-zinc max-w-none prose-sm prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-p:leading-snug prose-li:leading-snug text-zinc-400">
+                  <div className="prose prose-invert prose-zinc max-w-none prose-sm prose-pre:bg-lens-deep prose-pre:border prose-pre:border-lens-border prose-p:leading-snug prose-li:leading-snug text-lens-text-sub">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                   </div>
                 </div>
              ) : typeof content === 'string' ? (
                 <div className="relative">
                   <div className="absolute top-2 right-2 z-10"><CopyButton text={content} /></div>
-                  <div className="text-[10px] text-zinc-400 max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-zinc-950/80 p-3 pr-16 rounded-md border border-zinc-800/80 shadow-inner">
+                  <div className="text-[10px] text-lens-text-sub max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-lens-deep/80 p-3 pr-16 rounded-md border border-lens-border/80 shadow-inner">
                     {content}
                   </div>
                 </div>
              ) : (
-                <div className="text-[10px] text-zinc-400 max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-zinc-950/80 p-3 rounded-md border border-zinc-800/80 shadow-inner">
+                <div className="text-[10px] text-lens-text-sub max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-lens-deep/80 p-3 rounded-md border border-lens-border/80 shadow-inner">
                   {content}
                 </div>
              )}
@@ -119,20 +119,20 @@ function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isComm
 }
 
 function AvatarBlock({ isUser, node, timestamp }: { isUser: boolean, node: React.ReactNode, timestamp?: number }) {
-  const textColor = isUser ? 'text-amber-500/70' : 'text-emerald-500/70';
-  const bgColor = isUser ? 'bg-amber-500' : 'bg-emerald-500';
+  const textColor = isUser ? 'text-lens-accent/70' : 'text-emerald-500/70';
+  const bgColor = isUser ? 'bg-lens-accent' : 'bg-emerald-500';
   const label = isUser ? 'User' : 'Claude';
 
   return (
     <div className="relative flex w-full mb-2 group pt-2 pb-6 items-start">
-      <div className="absolute left-[7px] top-0 bottom-0 w-px bg-zinc-800/40" />
+      <div className="absolute left-[7px] top-0 bottom-0 w-px bg-lens-border/40" />
 
-      <div className="w-4 shrink-0 flex items-center justify-center mt-[3px] bg-anthropic-bg relative z-20">
-        <div className={`w-2 h-2 rounded-full ring-2 ring-anthropic-bg ${bgColor}`} />
+      <div className="w-4 shrink-0 flex items-center justify-center mt-[3px] bg-lens-bg relative z-20">
+        <div className={`w-2 h-2 rounded-full ring-2 ring-lens-bg ${bgColor}`} />
       </div>
 
       {timestamp && (
-        <div className="absolute right-0 top-[8px] text-[10px] text-zinc-600 font-mono">
+        <div className="absolute right-0 top-[8px] text-[10px] text-lens-text-faint font-mono">
           {formatTime(timestamp)}
         </div>
       )}
@@ -161,7 +161,7 @@ export function MessageBubble({ message, collapseSignal }: { message: Message, c
   }
 
   if (message.role === 'system') {
-    return <PipelineEvent timestamp={message.timestamp} icon={Zap} dotColor="bg-zinc-500" textColor="text-zinc-400/80 hover:text-zinc-300" title="System Event" content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)} collapseSignal={collapseSignal} />;
+    return <PipelineEvent timestamp={message.timestamp} icon={Zap} dotColor="bg-zinc-500" textColor="text-lens-text-sub/80 hover:text-lens-text-body" title="System Event" content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)} collapseSignal={collapseSignal} />;
   }
 
   const isUser = message.role === 'user';
@@ -210,10 +210,10 @@ export function MessageBubble({ message, collapseSignal }: { message: Message, c
            return (
              <div key={i} className="flex flex-col w-full">
                {caveatStr && (
-                 <PipelineEvent timestamp={message.timestamp} icon={AlertTriangle} dotColor="bg-amber-600" textColor="text-amber-500/80 hover:text-amber-400" title="Local Command Override" isCommand={false} content={caveatStr} collapseSignal={collapseSignal} />
+                 <PipelineEvent timestamp={message.timestamp} icon={AlertTriangle} dotColor="bg-lens-accent" textColor="text-lens-accent/80 hover:text-lens-accent" title="Local Command Override" isCommand={false} content={caveatStr} collapseSignal={collapseSignal} />
                )}
                {localCommandName && (
-                 <PipelineEvent timestamp={message.timestamp} icon={Terminal} dotColor="bg-amber-500" textColor="text-amber-500/80 hover:text-amber-400" title={`Local Command: ${localCommandName}`} isCommand={true} content={""} collapseSignal={collapseSignal} />
+                 <PipelineEvent timestamp={message.timestamp} icon={Terminal} dotColor="bg-lens-accent" textColor="text-lens-accent/80 hover:text-lens-accent" title={`Local Command: ${localCommandName}`} isCommand={true} content={""} collapseSignal={collapseSignal} />
                )}
                {text && (
                  <AvatarBlock timestamp={message.timestamp} isUser={isUser} node={<MarkdownBlock text={text} />} />

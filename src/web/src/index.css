@@ -2,9 +2,28 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --color-anthropic-bg: #1e1e1e;
+  /* Backgrounds */
+  --color-lens-bg:         #1e1e1e;   /* deepest bg */
+  --color-lens-surface:    #18181b;   /* panels, cards (zinc-900) */
+  --color-lens-deep:       #09090b;   /* sidebar/header overlays (zinc-950) */
+
+  /* Borders & interactive surfaces */
+  --color-lens-border:     #27272a;   /* default border + bg (zinc-800) */
+  --color-lens-border-hi:  #52525b;   /* hover/focus borders (zinc-600) */
+  --color-lens-hover:      #3f3f46;   /* button hover background (zinc-700) */
+
+  /* Text hierarchy */
+  --color-lens-text:       #e2e8f0;   /* headings (slate-200) */
+  --color-lens-text-body:  #cbd5e1;   /* body text (slate-300) */
+  --color-lens-text-sub:   #a1a1aa;   /* secondary (zinc-400) */
+  --color-lens-text-dim:   #71717a;   /* labels (zinc-500) */
+  --color-lens-text-faint: #52525b;   /* very faint (zinc-600) */
+
+  /* Accent */
+  --color-lens-accent:     #f59e0b;   /* primary accent (amber-500) */
+  --color-lens-accent-hi:  #fef3c7;   /* light accent text (amber-100) */
 }
 
 body {
-  @apply bg-zinc-900 text-slate-300 antialiased;
+  @apply bg-lens-bg text-lens-text-body antialiased;
 }

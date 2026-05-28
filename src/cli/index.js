@@ -178,6 +178,8 @@ async function getStats() {
       models: {},
       hooks: { success: 0, failure: 0, avgDurationMs: 0 },
       topProjects: [],
+      activity: {},
+      estimatedCostUsd: 0,
     };
   }
 
