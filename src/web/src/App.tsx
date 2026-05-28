@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { Conversation, ProjectSummary } from './types';
 import { MessageBubble } from './components/MessageBubble';
-import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug, Search } from 'lucide-react';
+import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug } from 'lucide-react';
 import { LogsViewer } from './components/LogsViewer';
 import { SkillsViewer } from './components/SkillsViewer';
 import { MCPsViewer } from './components/MCPsViewer';
-import { SearchView } from './components/SearchView';
 import { prettifyProjectName, formatRelative } from './utils';
 
 const SESSION_PAGE_SIZE = 20;
@@ -19,8 +18,7 @@ function App() {
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [directSession, setDirectSession] = useState<Conversation | null>(null);
-  const [currentView, setCurrentView] = useState<'history' | 'logs' | 'skills' | 'mcps' | 'search'>('history');
+  const [currentView, setCurrentView] = useState<'history' | 'logs' | 'skills' | 'mcps'>('history');
   const [sessionSort, setSessionSort] = useState<'newest' | 'oldest'>('newest');
   const [error, setError] = useState<string | null>(null);
 
@@ -50,8 +48,7 @@ function App() {
 
   const currentKey = activeProjectId ? `${activeProjectId}:${sessionsPage}` : null;
   const sessionsLoading = currentKey !== null && loadedKey !== currentKey;
-  const activeConv = sessions.find(c => c.id === activeSessionId)
-    ?? (directSession?.id === activeSessionId ? directSession : null);
+  const activeConv = sessions.find(c => c.id === activeSessionId) ?? null;
   const sessionsTotalPages = Math.ceil(sessionsTotal / SESSION_PAGE_SIZE);
 
   const sortedSessions = sessionSort === 'oldest' ? [...sessions].reverse() : sessions;
@@ -67,22 +64,9 @@ function App() {
   function closeProject() {
     setActiveProjectId(null);
     setActiveSessionId(null);
-    setDirectSession(null);
     setSessions([]);
     setSessionsPage(0);
     setLoadedKey(null);
-  }
-
-  function navigateToSession(project: string, sessionId: string) {
-    setCurrentView('history');
-    setDirectSession(null);
-    setActiveSessionId(sessionId);
-    openProject(project);
-    fetch(`/api/session?project=${encodeURIComponent(project)}&id=${encodeURIComponent(sessionId)}`)
-      .then(res => res.json())
-      .then(res => {
-        if (res.data) setDirectSession(res.data);
-      });
   }
 
   return (
@@ -110,12 +94,6 @@ function App() {
                 className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center ${currentView === 'history' ? 'bg-zinc-800/60 text-slate-200' : 'text-zinc-400 hover:text-slate-200 hover:bg-zinc-800/30'}`}
               >
                 <MessageSquare className="w-4 h-4 mr-2 shrink-0" /> Chat History
-              </button>
-              <button
-                onClick={() => { setCurrentView('search'); closeProject(); }}
-                className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center ${currentView === 'search' ? 'bg-zinc-800/60 text-slate-200' : 'text-zinc-400 hover:text-slate-200 hover:bg-zinc-800/30'}`}
-              >
-                <Search className="w-4 h-4 mr-2 shrink-0" /> Search
               </button>
               <button
                 onClick={() => { setCurrentView('logs'); closeProject(); }}
@@ -230,8 +208,6 @@ function App() {
           <SkillsViewer />
         ) : currentView === 'mcps' ? (
           <MCPsViewer />
-        ) : currentView === 'search' ? (
-          <SearchView onNavigate={navigateToSession} />
         ) : activeProjectId === null ? (
           <div className="flex-1 overflow-y-auto w-full p-8">
             <h2 className="text-2xl font-semibold mb-6 flex items-center"><FolderOpen className="mr-3 text-amber-500" /> Select a Project</h2>

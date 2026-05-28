@@ -88,14 +88,6 @@ export interface MCPServerDetail extends MCPServer {
   tools: MCPTool[];
 }
 
-export interface SearchResult {
-  project: string;
-  sessionId: string;
-  title: string;
-  excerpt: string;
-  lastUpdated: number;
-}
-
 export interface DiagnosticsStats {
   totals: { sessions: number; messages: number; toolCalls: number };
   tokens: { input: number; output: number; cacheRead: number; cacheCreation: number; cacheHitRate: number };
