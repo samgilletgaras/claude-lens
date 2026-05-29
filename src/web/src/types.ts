@@ -90,6 +90,30 @@ export interface MCPServerDetail extends MCPServer {
   tools: MCPTool[];
 }
 
+export interface MemoryEntry {
+  project: string;
+  filename: string;
+  name: string;
+  description: string | null;
+  type: 'user' | 'feedback' | 'project' | 'reference' | null;
+  snippet: string | null;
+}
+
+export interface MemoryEntryDetail extends MemoryEntry {
+  frontmatter: Record<string, string>;
+  body: string;
+}
+
+export interface ProjectStats {
+  totals: { sessions: number; messages: number; toolCalls: number };
+  tokens: { input: number; output: number; cacheRead: number; cacheCreation: number; cacheHitRate: number };
+  models: Record<string, number>;
+  topTools: { name: string; count: number }[];
+  activity: Record<string, number>;
+  hooks: { success: number; failure: number; avgDurationMs: number };
+  estimatedCostUsd: number;
+}
+
 export interface DiagnosticsStats {
   totals: { sessions: number; messages: number; toolCalls: number };
   tokens: { input: number; output: number; cacheRead: number; cacheCreation: number; cacheHitRate: number };

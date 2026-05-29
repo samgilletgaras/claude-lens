@@ -10,6 +10,14 @@ export function prettifyProjectName(str: string): string {
   return folderName.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+export function formatDuration(ms: number): string {
+  if (ms < 60_000) return `${Math.floor(ms / 1000)}s`;
+  const min = Math.floor(ms / 60_000);
+  const h = Math.floor(min / 60);
+  if (h === 0) return `${min}m`;
+  return `${h}h ${min % 60}m`;
+}
+
 export function formatRelative(ts: number): string {
   const now = Date.now();
   const diff = now - ts;

@@ -10,6 +10,16 @@ const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects');
 const SKILLS_DIR = path.join(CLAUDE_DIR, 'skills');
 const MCP_PLUGINS_DIR = path.join(CLAUDE_DIR, 'plugins/marketplaces/claude-plugins-official/external_plugins');
 
+const CACHE_TTL = 60_000;
+let _statsCache = null;
+let _statsCacheTs = 0;
+let _skillUsageCache = null;
+let _skillUsageCacheTs = 0;
+let _mcpUsageCache = null;
+let _mcpUsageCacheTs = 0;
+const _sessionCache = {};
+const _projectStatsCache = {};
+
 function isTmp(name) {
   return name === 'tmp' || name.endsWith('-tmp') || name.includes('tmp');
 }
@@ -73,6 +83,12 @@ async function getProjectSessions(project, page = 0, pageSize = 20) {
   try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); }
   catch(e) { return { data: [], total: 0 }; }
 
+  const cacheKey = files.map(f => `${f}:${fs.statSync(path.join(pPath, f)).mtimeMs}`).join('|');
+  if (_sessionCache[project]?.key === cacheKey) {
+    const s = _sessionCache[project].sessions;
+    return { data: s.slice(page * pageSize, (page + 1) * pageSize), total: s.length };
+  }
+
   const sessions = [];
   for (const f of files) {
     const sessionId = f.replace('.jsonl', '');
@@ -120,6 +136,7 @@ async function getProjectSessions(project, page = 0, pageSize = 20) {
   }
 
   sessions.sort((a, b) => b.lastUpdated - a.lastUpdated);
+  _sessionCache[project] = { key: cacheKey, sessions };
   const total = sessions.length;
   const data = sessions.slice(page * pageSize, (page + 1) * pageSize);
   return { data, total };
@@ -170,6 +187,7 @@ async function getLogs(page = 0, pageSize = 10) {
 
 
 async function getStats() {
+  if (_statsCache && Date.now() - _statsCacheTs < CACHE_TTL) return _statsCache;
   if (!fs.existsSync(PROJECTS_DIR)) {
     return {
       totals: { sessions: 0, messages: 0, toolCalls: 0 },
@@ -296,7 +314,7 @@ async function getStats() {
     estimatedCostUsd += (toks.input / 1e6) * iRate + (toks.output / 1e6) * oRate;
   }
 
-  return {
+  _statsCache = {
     totals: { sessions, messages, toolCalls },
     tokens: { input: tokInput, output: tokOutput, cacheRead: tokCacheRead, cacheCreation: tokCacheCreation, cacheHitRate },
     stopReasons,
@@ -310,9 +328,12 @@ async function getStats() {
     activity: activityByDay,
     estimatedCostUsd: Math.round(estimatedCostUsd * 100) / 100,
   };
+  _statsCacheTs = Date.now();
+  return _statsCache;
 }
 
 async function scanSkillUsage() {
+  if (_skillUsageCache && Date.now() - _skillUsageCacheTs < CACHE_TTL) return _skillUsageCache;
   const usage = {};
   if (!fs.existsSync(PROJECTS_DIR)) return usage;
   for (const proj of fs.readdirSync(PROJECTS_DIR)) {
@@ -345,6 +366,8 @@ async function scanSkillUsage() {
       }
     }
   }
+  _skillUsageCache = usage;
+  _skillUsageCacheTs = Date.now();
   return usage;
 }
 
@@ -416,6 +439,7 @@ function getMcpPluginConfigs() {
 }
 
 async function scanMcpUsage() {
+  if (_mcpUsageCache && Date.now() - _mcpUsageCacheTs < CACHE_TTL) return _mcpUsageCache;
   const usage = {};
   if (!fs.existsSync(PROJECTS_DIR)) return usage;
   for (const proj of fs.readdirSync(PROJECTS_DIR)) {
@@ -457,6 +481,8 @@ async function scanMcpUsage() {
       }
     }
   }
+  _mcpUsageCache = usage;
+  _mcpUsageCacheTs = Date.now();
   return usage;
 }
 
@@ -513,6 +539,159 @@ async function getMcps(serverId = null) {
 
   if (serverId) return servers[0] || null;
   return servers.sort((a, b) => b.totalCalls - a.totalCalls || a.name.localeCompare(b.name));
+}
+
+async function getMemory(project = null, filename = null) {
+  const entries = [];
+  if (!fs.existsSync(PROJECTS_DIR)) return entries;
+
+  for (const proj of fs.readdirSync(PROJECTS_DIR)) {
+    if (isTmp(proj)) continue;
+    if (project && proj !== project) continue;
+    const memDir = path.join(PROJECTS_DIR, proj, 'memory');
+    if (!fs.existsSync(memDir)) continue;
+
+    const files = fs.readdirSync(memDir).filter(f => f.endsWith('.md'));
+    for (const f of files) {
+      if (filename && f !== filename) continue;
+      try {
+        const raw = fs.readFileSync(path.join(memDir, f), 'utf8');
+        const { meta, body } = parseFrontmatter(raw);
+        // Handle `metadata:\n  type: user` indented format
+        let type = meta.type || null;
+        if (!type) {
+          const m = raw.match(/^\s+type\s*:\s*(.+)/m);
+          if (m) type = m[1].trim();
+        }
+        entries.push({
+          project: proj,
+          filename: f,
+          name: meta.name || (f === 'MEMORY.md' ? 'Memory Index' : f.replace('.md', '')),
+          description: meta.description || null,
+          type,
+          snippet: body.trim().slice(0, 200) || null,
+          ...(filename ? { frontmatter: { ...meta, ...(type ? { type } : {}) }, body } : {}),
+        });
+      } catch(e) {}
+    }
+  }
+  return entries;
+}
+
+async function getProjectStats(project) {
+  const pPath = path.join(PROJECTS_DIR, project);
+  if (!fs.existsSync(pPath) || !fs.statSync(pPath).isDirectory()) return null;
+
+  let files;
+  try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); }
+  catch(e) { return null; }
+
+  const cacheKey = files.map(f => `${f}:${fs.statSync(path.join(pPath, f)).mtimeMs}`).join('|');
+  if (_projectStatsCache[project]?.key === cacheKey) return _projectStatsCache[project].stats;
+
+  let sessions = files.length;
+  let messages = 0, toolCalls = 0;
+  let tokInput = 0, tokOutput = 0, tokCacheRead = 0, tokCacheCreation = 0;
+  const models = {};
+  const toolUsage = {};
+  const activityByDay = {};
+  const tokensByModel = {};
+  let hookSuccess = 0, hookFailure = 0, hookDurationTotal = 0, hookCount = 0;
+
+  for (const f of files) {
+    const filePath = path.join(pPath, f);
+    const fileStream = fs.createReadStream(filePath);
+    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+    let sessionLastTs = 0;
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      const isAssistant = line.includes('"assistant"');
+      const isAttachment = line.includes('"attachment"');
+      const isUser = line.includes('"user"');
+      if (!isAssistant && !isAttachment && !isUser) continue;
+      try {
+        const parsed = JSON.parse(line);
+        if (parsed.timestamp) {
+          const t = new Date(parsed.timestamp).getTime();
+          if (t > sessionLastTs) sessionLastTs = t;
+        }
+        if (parsed.type === 'user') {
+          messages++;
+        } else if (parsed.type === 'assistant') {
+          messages++;
+          const msg = parsed.message;
+          if (!msg) continue;
+          if (msg.model) models[msg.model] = (models[msg.model] || 0) + 1;
+          const u = msg.usage;
+          if (u) {
+            const inp = u.input_tokens || 0;
+            const out = u.output_tokens || 0;
+            const cr = u.cache_read_input_tokens || 0;
+            const cc = u.cache_creation_input_tokens || 0;
+            tokInput += inp; tokOutput += out; tokCacheRead += cr; tokCacheCreation += cc;
+            if (msg.model) {
+              if (!tokensByModel[msg.model]) tokensByModel[msg.model] = { input: 0, output: 0 };
+              tokensByModel[msg.model].input += inp;
+              tokensByModel[msg.model].output += out;
+            }
+          }
+          if (Array.isArray(msg.content)) {
+            for (const block of msg.content) {
+              if (block?.type === 'tool_use') {
+                toolCalls++;
+                const tn = block.name || 'unknown';
+                toolUsage[tn] = (toolUsage[tn] || 0) + 1;
+              }
+            }
+          }
+        } else if (parsed.type === 'attachment') {
+          const att = parsed.attachment;
+          if (!att) continue;
+          if (att.type === 'hook_success') {
+            hookSuccess++;
+            if (typeof att.durationMs === 'number') { hookDurationTotal += att.durationMs; hookCount++; }
+          } else if (att.type === 'hook_failure') {
+            hookFailure++;
+          }
+        }
+      } catch(e) {}
+    }
+    if (sessionLastTs > 0) {
+      const dayKey = new Date(sessionLastTs).toISOString().slice(0, 10);
+      activityByDay[dayKey] = (activityByDay[dayKey] || 0) + 1;
+    }
+  }
+
+  const totalCacheTokens = tokInput + tokCacheRead + tokCacheCreation;
+  const cacheHitRate = totalCacheTokens > 0 ? Math.round((tokCacheRead / totalCacheTokens) * 100) : 0;
+
+  const topTools = Object.entries(toolUsage)
+    .sort((a, b) => b[1] - a[1]).slice(0, 10)
+    .map(([name, count]) => ({ name, count }));
+
+  const MODEL_PRICING = {
+    'claude-opus-4': [15, 75], 'claude-3-opus': [15, 75],
+    'claude-sonnet-4': [3, 15], 'claude-3-5-sonnet': [3, 15], 'claude-3-sonnet': [3, 15],
+    'claude-haiku-4': [0.8, 4], 'claude-3-5-haiku': [0.8, 4], 'claude-3-haiku': [0.25, 1.25],
+  };
+  let estimatedCostUsd = 0;
+  for (const [model, toks] of Object.entries(tokensByModel)) {
+    const key = Object.keys(MODEL_PRICING).find(k => model.includes(k));
+    const [iRate, oRate] = key ? MODEL_PRICING[key] : [3, 15];
+    estimatedCostUsd += (toks.input / 1e6) * iRate + (toks.output / 1e6) * oRate;
+  }
+
+  const stats = {
+    totals: { sessions, messages, toolCalls },
+    tokens: { input: tokInput, output: tokOutput, cacheRead: tokCacheRead, cacheCreation: tokCacheCreation, cacheHitRate },
+    models,
+    topTools,
+    activity: activityByDay,
+    hooks: { success: hookSuccess, failure: hookFailure, avgDurationMs: hookCount > 0 ? Math.round(hookDurationTotal / hookCount) : 0 },
+    estimatedCostUsd: Math.round(estimatedCostUsd * 100) / 100,
+  };
+  _projectStatsCache[project] = { key: cacheKey, stats };
+  return stats;
 }
 
 function parseQuery(url) {
@@ -609,7 +788,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (q.pathname === '/api/stats') {
-    try { ok({ data: await getStats() }); }
+    const project = q.get('project', null);
+    try {
+      const data = project ? await getProjectStats(project) : await getStats();
+      if (project && !data) { err('Project not found'); return; }
+      ok({ data });
+    } catch(e) { err(e.message); }
+    return;
+  }
+
+  if (q.pathname === '/api/memory') {
+    const project = q.get('project', null);
+    const filename = q.get('file', null);
+    try { ok({ data: await getMemory(project, filename) }); }
     catch(e) { err(e.message); }
     return;
   }
