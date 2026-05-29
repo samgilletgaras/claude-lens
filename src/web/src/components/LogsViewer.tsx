@@ -165,12 +165,29 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-1 mt-2 justify-end">
-        <span className="text-[9px] text-lens-text-faint">Less</span>
-        {['bg-lens-border', 'bg-amber-900/70', 'bg-amber-700/80', 'bg-amber-500', 'bg-amber-400'].map((c, i) => (
-          <div key={i} className={`w-[11px] h-[11px] rounded-[2px] ${c}`} />
-        ))}
-        <span className="text-[9px] text-lens-text-faint">More</span>
+      <div className="flex items-center gap-2 mt-3 justify-end">
+        {([
+          { color: 'bg-lens-border',   lo: 0,                          hi: 0 },
+          { color: 'bg-amber-900/70',  lo: 1,                          hi: Math.max(1, Math.floor(maxCount * 0.2)) },
+          { color: 'bg-amber-800/80',  lo: Math.floor(maxCount * 0.2) + 1, hi: Math.floor(maxCount * 0.4) },
+          { color: 'bg-amber-600/80',  lo: Math.floor(maxCount * 0.4) + 1, hi: Math.floor(maxCount * 0.65) },
+          { color: 'bg-amber-500',     lo: Math.floor(maxCount * 0.65) + 1, hi: Math.floor(maxCount * 0.85) },
+          { color: 'bg-amber-400',     lo: Math.floor(maxCount * 0.85) + 1, hi: maxCount },
+        ] as { color: string; lo: number; hi: number }[])
+          .filter((band, i) => i === 0 || band.lo <= maxCount)
+          .map((band, i) => {
+            const label = band.lo === 0 ? '0'
+              : band.lo === band.hi ? String(band.lo)
+              : band.hi >= maxCount ? `${band.lo}+`
+              : `${band.lo}–${band.hi}`;
+            return (
+              <div key={i} className="flex flex-col items-center gap-0.5">
+                <div className={`w-[11px] h-[11px] rounded-[2px] ${band.color}`} />
+                <span className="text-[8px] text-lens-text-faint tabular-nums">{label}</span>
+              </div>
+            );
+          })}
+        <span className="text-[9px] text-lens-text-faint ml-0.5">sessions</span>
       </div>
     </div>
   );
