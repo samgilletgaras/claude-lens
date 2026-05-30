@@ -202,28 +202,42 @@ export function MemoryViewer() {
         {filtered.length === 0 ? (
           <p className="text-lens-text-dim text-sm">No entries match your search.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
-            {filtered.map(entry => (
-              <button
-                key={`${entry.project}/${entry.filename}`}
-                onClick={() => openEntry(entry)}
-                className="bg-lens-surface border border-lens-border hover:border-lens-border-hi rounded-lg p-4 text-left transition-colors flex flex-col"
-              >
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="font-medium text-lens-text">{entry.name}</span>
-                  <TypeBadge type={entry.type} />
+          (() => {
+            const byProject = filtered.reduce<Record<string, MemoryEntry[]>>((acc, e) => {
+              (acc[e.project] ??= []).push(e);
+              return acc;
+            }, {});
+            return Object.entries(byProject).map(([project, items]) => (
+              <div key={project} className="mb-8 max-w-7xl mx-auto">
+                <div className="flex items-center gap-3 mb-3">
+                  <h3 className="text-sm font-medium text-lens-text-sub">{prettifyProjectName(project)}</h3>
+                  <span className="text-[10px] text-lens-text-faint">{items.length}</span>
+                  <div className="flex-1 h-px bg-lens-border/60" />
                 </div>
-                <div className="text-[10px] text-lens-text-faint mb-1.5">{prettifyProjectName(entry.project)}</div>
-                {entry.description ? (
-                  <p className="text-lens-text-dim text-xs flex-1 line-clamp-3">{entry.description}</p>
-                ) : entry.snippet ? (
-                  <p className="text-lens-text-faint text-xs flex-1 line-clamp-3 italic">{entry.snippet}</p>
-                ) : (
-                  <p className="text-lens-text-faint text-xs flex-1 italic">No description</p>
-                )}
-              </button>
-            ))}
-          </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {items.map(entry => (
+                    <button
+                      key={`${entry.project}/${entry.filename}`}
+                      onClick={() => openEntry(entry)}
+                      className="bg-lens-surface border border-lens-border hover:border-lens-border-hi rounded-lg p-4 text-left transition-colors flex flex-col"
+                    >
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-medium text-lens-text">{entry.name}</span>
+                        <TypeBadge type={entry.type} />
+                      </div>
+                      {entry.description ? (
+                        <p className="text-lens-text-dim text-xs flex-1 line-clamp-3">{entry.description}</p>
+                      ) : entry.snippet ? (
+                        <p className="text-lens-text-faint text-xs flex-1 line-clamp-3 italic">{entry.snippet}</p>
+                      ) : (
+                        <p className="text-lens-text-faint text-xs flex-1 italic">No description</p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()
         )}
       </div>
     </div>
