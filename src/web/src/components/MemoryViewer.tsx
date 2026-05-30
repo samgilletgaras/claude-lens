@@ -129,7 +129,7 @@ export function MemoryViewer() {
 
   if (selected) {
     const meta = detail?.frontmatter ?? {};
-    const metaRows = Object.entries(meta).filter(([k, v]) => !['name', 'type', 'description'].includes(k) && v);
+    const metaRows = Object.entries(meta).filter(([k, v]) => k !== 'name' && v != null && v !== '');
     return (
       <div className="flex-1 overflow-y-auto w-full">
         <div className="px-4 md:px-8 pt-8 pb-16 max-w-4xl mx-auto">
@@ -149,18 +149,14 @@ export function MemoryViewer() {
 
           {!detailLoading && (
             <div className="bg-lens-surface border border-lens-border rounded-lg p-4 mb-6 space-y-2">
-              {selected.description && (
-                <div className="flex gap-4 text-sm border-b border-lens-border pb-2 mb-2">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-lens-text-dim min-w-[90px] pt-0.5 shrink-0">Description</span>
-                  <span className="text-lens-text-body">{selected.description}</span>
-                </div>
-              )}
-              {metaRows.length > 0 && metaRows.map(([key, val]) => (
+              {metaRows.length > 0 ? metaRows.map(([key, val]) => (
                 <div key={key} className="flex gap-4 text-sm">
                   <span className="font-mono text-[10px] uppercase tracking-wider text-lens-text-dim min-w-[90px] pt-0.5 shrink-0 capitalize">{key}</span>
-                  <span className="text-lens-text-body break-all">{val}</span>
+                  <span className="text-lens-text-body break-all">{String(val)}</span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-lens-text-faint text-xs italic">No metadata</p>
+              )}
             </div>
           )}
 
