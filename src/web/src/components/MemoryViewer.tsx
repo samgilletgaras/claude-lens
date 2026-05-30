@@ -129,7 +129,7 @@ export function MemoryViewer() {
 
   if (selected) {
     const meta = detail?.frontmatter ?? {};
-    const metaRows = Object.entries(meta).filter(([k]) => !['name', 'type'].includes(k));
+    const metaRows = Object.entries(meta).filter(([k, v]) => !['name', 'type', 'description'].includes(k) && v);
     return (
       <div className="flex-1 overflow-y-auto w-full">
         <div className="px-4 md:px-8 pt-8 pb-16 max-w-4xl mx-auto">

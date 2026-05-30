@@ -557,12 +557,12 @@ async function getMemory(project = null, filename = null) {
       try {
         const raw = fs.readFileSync(path.join(memDir, f), 'utf8');
         const { meta, body } = parseFrontmatter(raw);
-        // Handle `metadata:\n  type: user` indented format
-        let type = meta.type || null;
-        if (!type) {
-          const m = raw.match(/^\s+type\s*:\s*(.+)/m);
-          if (m) type = m[1].trim();
+        // Flatten indented sub-keys (e.g. `metadata:\n  type: feedback\n  originSessionId: ...`)
+        for (const [, k, v] of raw.matchAll(/^\s{1,}([\w-]+)\s*:\s*(.+)/gm)) {
+          if (!meta[k]) meta[k] = v.trim();
         }
+        delete meta.metadata; // remove the empty YAML container key
+        const type = meta.type || null;
         entries.push({
           project: proj,
           filename: f,
@@ -570,7 +570,7 @@ async function getMemory(project = null, filename = null) {
           description: meta.description || null,
           type,
           snippet: body.trim().slice(0, 200) || null,
-          ...(filename ? { frontmatter: { ...meta, ...(type ? { type } : {}) }, body } : {}),
+          ...(filename ? { frontmatter: { ...meta }, body } : {}),
         });
       } catch(e) {}
     }
