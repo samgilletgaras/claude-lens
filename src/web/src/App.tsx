@@ -1,17 +1,18 @@
 import { useEffect, useState, useRef } from 'react';
 import type { ConversationSummary, ProjectSummary, Block, Message, AttachmentContent } from './types';
 import { MessageBubble } from './components/MessageBubble';
-import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug, RefreshCw, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X, Brain, ClipboardList } from 'lucide-react';
+import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug, RefreshCw, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X, Brain, ClipboardList, Settings } from 'lucide-react';
 import { LogsViewer } from './components/LogsViewer';
 import { SkillsViewer } from './components/SkillsViewer';
 import { MCPsViewer } from './components/MCPsViewer';
 import { MemoryViewer } from './components/MemoryViewer';
 import { PlansViewer } from './components/PlansViewer';
 import { ProjectDiagnostics } from './components/ProjectDiagnostics';
-import { prettifyProjectName, formatRelative, fmt, formatDuration } from './utils';
+import { SettingsViewer } from './components/SettingsViewer';
+import { prettifyProjectName, formatRelative, fmt, formatDuration, apiUrl } from './utils';
 
 const SESSION_PAGE_SIZE = 20;
-const VALID_VIEWS = ['history', 'logs', 'skills', 'mcps', 'memory', 'plans'] as const;
+const VALID_VIEWS = ['history', 'logs', 'skills', 'mcps', 'memory', 'plans', 'settings'] as const;
 type AppView = typeof VALID_VIEWS[number];
 
 function extractMessageText(msg: Message): string {
@@ -99,6 +100,11 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
   const [sessionMatchIdx, setSessionMatchIdx] = useState(0);
+  const [demoMode, setDemoMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('lens-demo-mode');
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [hasClaudeDir, setHasClaudeDir] = useState(true);
 
   const sessionScrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -116,19 +122,32 @@ function App() {
   }
 
   useEffect(() => {
-    fetch('/api/projects')
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(r => {
+        const detected = r.data?.hasClaudeDir ?? true;
+        setHasClaudeDir(detected);
+        if (!detected && localStorage.getItem('lens-demo-mode') === null) {
+          setDemoMode(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch(apiUrl('/api/projects', demoMode))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
         setProjects(res.data || []);
       })
       .catch(err => setError(err.message));
-  }, [refreshKey]);
+  }, [refreshKey, demoMode]);
 
   useEffect(() => {
     if (!activeProjectId) return;
     const key = `${activeProjectId}:${sessionsPage}`;
-    fetch(`/api/history?project=${encodeURIComponent(activeProjectId)}&page=${sessionsPage}&pageSize=${SESSION_PAGE_SIZE}`)
+    fetch(apiUrl(`/api/history?project=${encodeURIComponent(activeProjectId)}&page=${sessionsPage}&pageSize=${SESSION_PAGE_SIZE}`, demoMode))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -141,7 +160,7 @@ function App() {
         }
       })
       .catch(() => setLoadedKey(key));
-  }, [activeProjectId, sessionsPage, refreshKey]);
+  }, [activeProjectId, sessionsPage, refreshKey, demoMode]);
 
   // Write state → hash
   useEffect(() => {
@@ -187,12 +206,12 @@ function App() {
   useEffect(() => {
     if (!activeProjectId || !activeSessionId) { setActiveMessages([]); return; }
     setMessagesLoading(true);
-    fetch(`/api/messages?project=${encodeURIComponent(activeProjectId)}&session=${encodeURIComponent(activeSessionId)}`)
+    fetch(apiUrl(`/api/messages?project=${encodeURIComponent(activeProjectId)}&session=${encodeURIComponent(activeSessionId)}`, demoMode))
       .then(r => r.json())
       .then(r => setActiveMessages(r.data || []))
       .catch(() => setActiveMessages([]))
       .finally(() => setMessagesLoading(false));
-  }, [activeProjectId, activeSessionId, refreshKey]);
+  }, [activeProjectId, activeSessionId, refreshKey, demoMode]);
 
   // Clear search when switching sessions
   useEffect(() => {
@@ -231,6 +250,12 @@ function App() {
     document.getElementById(`msg-${matchedIndices[clampedMatchIdx]}`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [clampedMatchIdx, searchQ, matchedIndices.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleDemoToggle(v: boolean) {
+    setDemoMode(v);
+    localStorage.setItem('lens-demo-mode', String(v));
+    refresh();
+  }
 
   function openProject(id: string) {
     setActiveProjectId(id);
@@ -420,6 +445,20 @@ function App() {
         )}
         {sidebarCollapsed && <div className="flex-1" />}
 
+        {/* Settings — above bottom bar, always visible */}
+        <div className={`shrink-0 border-t border-lens-border ${sidebarCollapsed ? 'p-1 flex flex-col items-center' : 'p-2'}`}>
+          {sidebarCollapsed ? (
+            <button onClick={() => setCurrentView('settings')} title="Settings" className={`w-full flex justify-center p-2 rounded transition-colors ${currentView === 'settings' ? 'bg-lens-border/60 text-lens-text' : 'text-lens-text-sub hover:text-lens-text hover:bg-lens-border/30'}`}>
+              <Settings className="w-4 h-4" />
+            </button>
+          ) : (
+            <button onClick={() => { setCurrentView('settings'); closeProject(); }} className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center justify-between ${currentView === 'settings' ? 'bg-lens-border/60 text-lens-text' : 'text-lens-text-sub hover:text-lens-text hover:bg-lens-border/30'}`}>
+              <span className="flex items-center"><Settings className="w-4 h-4 mr-2 shrink-0" /> Settings</span>
+              {demoMode && <span className="text-[9px] bg-lens-accent/20 text-lens-accent rounded px-1.5 py-0.5 shrink-0">DEMO</span>}
+            </button>
+          )}
+        </div>
+
         <div className={`shrink-0 border-t border-lens-border p-1.5 flex items-center ${sidebarCollapsed ? 'flex-col gap-1' : 'justify-between'}`}>
           <button onClick={refresh} title="Refresh data" className="p-1.5 rounded text-lens-text-dim hover:text-lens-text hover:bg-lens-border/50 transition-colors">
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -432,16 +471,18 @@ function App() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-lens-bg">
-        {currentView === 'logs' ? (
-          <LogsViewer key={refreshKey} />
+        {currentView === 'settings' ? (
+          <SettingsViewer demoMode={demoMode} hasClaudeDir={hasClaudeDir} onToggle={handleDemoToggle} />
+        ) : currentView === 'logs' ? (
+          <LogsViewer key={refreshKey} demoMode={demoMode} />
         ) : currentView === 'skills' ? (
-          <SkillsViewer key={refreshKey} />
+          <SkillsViewer key={refreshKey} demoMode={demoMode} />
         ) : currentView === 'mcps' ? (
-          <MCPsViewer key={refreshKey} />
+          <MCPsViewer key={refreshKey} demoMode={demoMode} />
         ) : currentView === 'memory' ? (
-          <MemoryViewer key={refreshKey} />
+          <MemoryViewer key={refreshKey} demoMode={demoMode} />
         ) : currentView === 'plans' ? (
-          <PlansViewer key={refreshKey} />
+          <PlansViewer key={refreshKey} demoMode={demoMode} />
         ) : activeProjectId === null ? (
           <div className="flex-1 overflow-y-auto w-full p-8">
             <div className="max-w-7xl mx-auto">
@@ -576,7 +617,7 @@ function App() {
             </div>
           </div>
         ) : activeProjectId !== null && !activeConv ? (
-          <ProjectDiagnostics key={activeProjectId} projectId={activeProjectId} />
+          <ProjectDiagnostics key={activeProjectId} projectId={activeProjectId} demoMode={demoMode} />
         ) : (
           <div className="flex-1 flex items-center justify-center text-lens-text-dim">
             <div className="text-center">

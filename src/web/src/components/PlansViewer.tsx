@@ -5,7 +5,7 @@ import { ClipboardList, ArrowLeft, Search } from 'lucide-react';
 import type { Plan, PlanDetail } from '../types';
 import { formatRelative } from '../utils';
 
-export function PlansViewer() {
+export function PlansViewer({ demoMode }: { demoMode?: boolean }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function PlansViewer() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/plans')
+    fetch(demoMode ? '/api/plans?demo=true' : '/api/plans')
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -32,7 +32,7 @@ export function PlansViewer() {
     setSelected(plan);
     setDetail(null);
     setDetailLoading(true);
-    fetch(`/api/plans?file=${encodeURIComponent(plan.filename)}`)
+    fetch(`/api/plans?file=${encodeURIComponent(plan.filename)}${demoMode ? '&demo=true' : ''}`)
       .then(res => res.json())
       .then(res => {
         setDetail((res.data as PlanDetail[])?.[0] ?? null);

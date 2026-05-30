@@ -13,7 +13,7 @@ function formatDate(ts: number | null) {
   return new Date(ts).toLocaleDateString();
 }
 
-export function MCPsViewer() {
+export function MCPsViewer({ demoMode }: { demoMode?: boolean }) {
   const [servers, setServers] = useState<MCPServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export function MCPsViewer() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/mcps')
+    fetch(demoMode ? '/api/mcps?demo=true' : '/api/mcps')
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -40,7 +40,7 @@ export function MCPsViewer() {
     setSelected(server);
     setDetail(null);
     setDetailLoading(true);
-    fetch(`/api/mcps?server=${encodeURIComponent(server.id)}`)
+    fetch(`/api/mcps?server=${encodeURIComponent(server.id)}${demoMode ? '&demo=true' : ''}`)
       .then(res => res.json())
       .then(res => {
         setDetail(res.data ?? null);

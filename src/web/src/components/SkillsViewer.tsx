@@ -19,7 +19,7 @@ function formatDate(ts: number | null) {
   return new Date(ts).toLocaleDateString();
 }
 
-export function SkillsViewer() {
+export function SkillsViewer({ demoMode }: { demoMode?: boolean }) {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function SkillsViewer() {
   const [contentLoading, setContentLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/skills')
+    fetch(demoMode ? '/api/skills?demo=true' : '/api/skills')
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -47,7 +47,7 @@ export function SkillsViewer() {
     setSkillDetail(null);
     if (!skill.hasSkillMd) return;
     setContentLoading(true);
-    fetch(`/api/skills?slug=${encodeURIComponent(skill.slug)}`)
+    fetch(`/api/skills?slug=${encodeURIComponent(skill.slug)}${demoMode ? '&demo=true' : ''}`)
       .then(res => res.json())
       .then(res => {
         setSkillDetail(res.data ?? null);

@@ -18,6 +18,11 @@ export function formatDuration(ms: number): string {
   return `${h}h ${min % 60}m`;
 }
 
+export function apiUrl(path: string, demoMode: boolean): string {
+  if (!demoMode) return path;
+  return path + (path.includes('?') ? '&' : '?') + 'demo=true';
+}
+
 export function formatRelative(ts: number): string {
   const now = Date.now();
   const diff = now - ts;

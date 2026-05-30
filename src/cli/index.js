@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import readline from 'readline';
+import * as demo from './demo-data.js';
 
 const PORT = process.env.PORT || 3000;
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
@@ -811,13 +812,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (q.pathname === '/api/health') {
-    ok({ data: 'ok' });
+    ok({ data: { ok: true, hasClaudeDir: fs.existsSync(CLAUDE_DIR) } });
     return;
   }
 
   if (q.pathname === '/api/skills') {
     const slug = q.get('slug', null);
     if (slug) {
+      if (q.get('demo')) { const d = demo.DEMO_SKILL_DETAIL[slug]; d ? ok({ data: d }) : err('Demo skill not found'); return; }
       try {
         const entryPath = path.join(SKILLS_DIR, slug);
         const skillMdPath = path.join(entryPath, 'SKILL.md');
@@ -835,12 +837,14 @@ const server = http.createServer(async (req, res) => {
       } catch(e) { err(e.message); }
       return;
     }
+    if (q.get('demo')) { ok({ data: demo.DEMO_SKILLS }); return; }
     try { ok({ data: await getSkills() }); }
     catch(e) { err(e.message); }
     return;
   }
 
   if (q.pathname === '/api/projects') {
+    if (q.get('demo')) { ok({ data: demo.DEMO_PROJECTS }); return; }
     try { ok({ data: await getProjects() }); }
     catch(e) { err(e.message); }
     return;
@@ -850,6 +854,7 @@ const server = http.createServer(async (req, res) => {
     const project = q.get('project', null);
     const session = q.get('session', null);
     if (!project || !session) { err('project and session params required'); return; }
+    if (q.get('demo')) { ok({ data: demo.DEMO_MESSAGES[session] || [] }); return; }
     try {
       const messages = await getSessionMessages(project, session);
       ok({ data: messages });
@@ -860,6 +865,11 @@ const server = http.createServer(async (req, res) => {
   if (q.pathname === '/api/history') {
     const project = q.get('project', null);
     if (!project) { err('project param required'); return; }
+    if (q.get('demo')) {
+      const sessions = demo.DEMO_SESSIONS[project] || [];
+      ok({ data: sessions, total: sessions.length, page: 0, pageSize: sessions.length });
+      return;
+    }
     const page = Math.max(0, parseInt(q.get('page', '0')));
     const pageSize = Math.max(1, parseInt(q.get('pageSize', '20')));
     try {
@@ -870,6 +880,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (q.pathname === '/api/logs') {
+    if (q.get('demo')) {
+      const page = Math.max(0, parseInt(q.get('page', '0')));
+      const pageSize = Math.max(1, parseInt(q.get('pageSize', '10')));
+      const all = demo.DEMO_LOGS.data;
+      ok({ data: all.slice(page * pageSize, (page + 1) * pageSize), total: demo.DEMO_LOGS.total, page, pageSize });
+      return;
+    }
     const page = Math.max(0, parseInt(q.get('page', '0')));
     const pageSize = Math.max(1, parseInt(q.get('pageSize', '10')));
     try {
@@ -881,6 +898,15 @@ const server = http.createServer(async (req, res) => {
 
   if (q.pathname === '/api/stats') {
     const project = q.get('project', null);
+    if (q.get('demo')) {
+      if (project) {
+        const s = demo.DEMO_PROJECT_STATS[project];
+        s ? ok({ data: s }) : err('Demo project not found');
+      } else {
+        ok({ data: demo.DEMO_STATS });
+      }
+      return;
+    }
     try {
       const data = project ? await getProjectStats(project) : await getStats();
       if (project && !data) { err('Project not found'); return; }
@@ -892,6 +918,16 @@ const server = http.createServer(async (req, res) => {
   if (q.pathname === '/api/memory') {
     const project = q.get('project', null);
     const filename = q.get('file', null);
+    if (q.get('demo')) {
+      if (project && filename) {
+        const d = demo.DEMO_MEMORY_DETAIL.find(e => e.project === project && e.filename === filename);
+        ok({ data: d ? [d] : [] });
+      } else {
+        const entries = project ? demo.DEMO_MEMORY.filter(e => e.project === project) : demo.DEMO_MEMORY;
+        ok({ data: entries });
+      }
+      return;
+    }
     try { ok({ data: await getMemory(project, filename) }); }
     catch(e) { err(e.message); }
     return;
@@ -899,6 +935,15 @@ const server = http.createServer(async (req, res) => {
 
   if (q.pathname === '/api/plans') {
     const file = q.get('file', null);
+    if (q.get('demo')) {
+      if (file) {
+        const p = demo.DEMO_PLANS.find(p => p.filename === file);
+        ok({ data: p ? [{ ...p, body: demo.DEMO_PLAN_BODY[file] ?? '' }] : [] });
+      } else {
+        ok({ data: demo.DEMO_PLANS });
+      }
+      return;
+    }
     try { ok({ data: await getPlans(file) }); }
     catch(e) { err(e.message); }
     return;
@@ -906,6 +951,15 @@ const server = http.createServer(async (req, res) => {
 
   if (q.pathname === '/api/mcps') {
     const server = q.get('server', null);
+    if (q.get('demo')) {
+      if (server) {
+        const d = demo.DEMO_MCP_DETAIL[server];
+        d ? ok({ data: d }) : err('Demo MCP server not found');
+      } else {
+        ok({ data: demo.DEMO_MCPS });
+      }
+      return;
+    }
     try {
       const data = await getMcps(server || null);
       if (server && !data) { err('Server not found'); return; }

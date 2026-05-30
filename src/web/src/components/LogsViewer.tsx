@@ -38,13 +38,13 @@ function BarRow({ label, value, max, color = 'bg-lens-accent/40' }: { label: str
   );
 }
 
-export function LogsViewer() {
+export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
   const [stats, setStats] = useState<DiagnosticsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/stats')
+    fetch(demoMode ? '/api/stats?demo=true' : '/api/stats')
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);

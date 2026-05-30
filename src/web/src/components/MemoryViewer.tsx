@@ -84,7 +84,7 @@ function ProjectGroups({ entries, onOpen }: { entries: MemoryEntry[]; onOpen: (e
   );
 }
 
-export function MemoryViewer() {
+export function MemoryViewer({ demoMode }: { demoMode?: boolean }) {
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +95,7 @@ export function MemoryViewer() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/memory')
+    fetch(demoMode ? '/api/memory?demo=true' : '/api/memory')
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -112,7 +112,7 @@ export function MemoryViewer() {
     setSelected(entry);
     setDetail(null);
     setDetailLoading(true);
-    fetch(`/api/memory?project=${encodeURIComponent(entry.project)}&file=${encodeURIComponent(entry.filename)}`)
+    fetch(`/api/memory?project=${encodeURIComponent(entry.project)}&file=${encodeURIComponent(entry.filename)}${demoMode ? '&demo=true' : ''}`)
       .then(res => res.json())
       .then(res => {
         setDetail((res.data as MemoryEntryDetail[])?.[0] ?? null);

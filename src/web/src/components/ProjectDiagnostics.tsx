@@ -37,7 +37,7 @@ function BarRow({ label, value, max, color = 'bg-lens-accent/40' }: { label: str
   );
 }
 
-export function ProjectDiagnostics({ projectId }: { projectId: string }) {
+export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string; demoMode?: boolean }) {
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function ProjectDiagnostics({ projectId }: { projectId: string }) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/stats?project=${encodeURIComponent(projectId)}`)
+    fetch(`/api/stats?project=${encodeURIComponent(projectId)}${demoMode ? '&demo=true' : ''}`)
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
