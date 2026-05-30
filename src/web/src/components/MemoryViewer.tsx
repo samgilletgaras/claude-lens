@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Brain, ArrowLeft, Search } from 'lucide-react';
+import { Brain, ArrowLeft, Search, ChevronRight } from 'lucide-react';
 import type { MemoryEntry, MemoryEntryDetail } from '../types';
 import { prettifyProjectName } from '../utils';
 
@@ -25,6 +25,64 @@ function TypeBadge({ type }: { type: string | null }) {
 }
 
 const ALL_TYPES: MemoryType[] = ['user', 'feedback', 'project', 'reference'];
+
+function ProjectGroups({ entries, onOpen }: { entries: MemoryEntry[]; onOpen: (e: MemoryEntry) => void }) {
+  const byProject = entries.reduce<Record<string, MemoryEntry[]>>((acc, e) => {
+    (acc[e.project] ??= []).push(e);
+    return acc;
+  }, {});
+  const projects = Object.keys(byProject);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+
+  function toggle(p: string) {
+    setOpen(prev => ({ ...prev, [p]: !prev[p] }));
+  }
+
+  return (
+    <>
+      {projects.map(project => {
+        const items = byProject[project];
+        const isOpen = open[project] ?? false;
+        return (
+          <div key={project} className="mb-4 max-w-7xl mx-auto">
+            <button
+              onClick={() => toggle(project)}
+              className="flex items-center gap-2 w-full group mb-0 py-1"
+            >
+              <ChevronRight className={`w-3.5 h-3.5 text-lens-text-faint transition-transform shrink-0 ${isOpen ? 'rotate-90' : ''}`} />
+              <span className="text-sm font-medium text-lens-text-sub group-hover:text-lens-text transition-colors">{prettifyProjectName(project)}</span>
+              <span className="text-[10px] text-lens-text-faint">{items.length}</span>
+              <div className="flex-1 h-px bg-lens-border/60" />
+            </button>
+            {isOpen && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                {items.map(entry => (
+                  <button
+                    key={`${entry.project}/${entry.filename}`}
+                    onClick={() => onOpen(entry)}
+                    className="bg-lens-surface border border-lens-border hover:border-lens-border-hi rounded-lg p-4 text-left transition-colors flex flex-col"
+                  >
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-medium text-lens-text">{entry.name}</span>
+                      <TypeBadge type={entry.type} />
+                    </div>
+                    {entry.description ? (
+                      <p className="text-lens-text-dim text-xs flex-1 line-clamp-3">{entry.description}</p>
+                    ) : entry.snippet ? (
+                      <p className="text-lens-text-faint text-xs flex-1 line-clamp-3 italic">{entry.snippet}</p>
+                    ) : (
+                      <p className="text-lens-text-faint text-xs flex-1 italic">No description</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
 
 export function MemoryViewer() {
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
@@ -202,42 +260,7 @@ export function MemoryViewer() {
         {filtered.length === 0 ? (
           <p className="text-lens-text-dim text-sm">No entries match your search.</p>
         ) : (
-          (() => {
-            const byProject = filtered.reduce<Record<string, MemoryEntry[]>>((acc, e) => {
-              (acc[e.project] ??= []).push(e);
-              return acc;
-            }, {});
-            return Object.entries(byProject).map(([project, items]) => (
-              <div key={project} className="mb-8 max-w-7xl mx-auto">
-                <div className="flex items-center gap-3 mb-3">
-                  <h3 className="text-sm font-medium text-lens-text-sub">{prettifyProjectName(project)}</h3>
-                  <span className="text-[10px] text-lens-text-faint">{items.length}</span>
-                  <div className="flex-1 h-px bg-lens-border/60" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {items.map(entry => (
-                    <button
-                      key={`${entry.project}/${entry.filename}`}
-                      onClick={() => openEntry(entry)}
-                      className="bg-lens-surface border border-lens-border hover:border-lens-border-hi rounded-lg p-4 text-left transition-colors flex flex-col"
-                    >
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-medium text-lens-text">{entry.name}</span>
-                        <TypeBadge type={entry.type} />
-                      </div>
-                      {entry.description ? (
-                        <p className="text-lens-text-dim text-xs flex-1 line-clamp-3">{entry.description}</p>
-                      ) : entry.snippet ? (
-                        <p className="text-lens-text-faint text-xs flex-1 line-clamp-3 italic">{entry.snippet}</p>
-                      ) : (
-                        <p className="text-lens-text-faint text-xs flex-1 italic">No description</p>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ));
-          })()
+          <ProjectGroups entries={filtered} onOpen={openEntry} />
         )}
       </div>
     </div>
