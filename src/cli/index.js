@@ -115,12 +115,16 @@ async function getProjectSessions(project, page = 0, pageSize = 20) {
         if (parsed.type === 'user') {
           turnCount++;
           hasMessages = true;
-          if (!preview) {
+          if (!preview && !parsed.isMeta) {
             const content = parsed.message?.content;
-            if (typeof content === 'string') preview = content.slice(0, 150).trim();
-            else if (Array.isArray(content)) {
-              const tb = content.find(b => b.type === 'text');
-              if (tb?.text) preview = tb.text.slice(0, 150).trim();
+            if (typeof content === 'string' && !content.trimStart().startsWith('<')) {
+              preview = content.slice(0, 150).trim();
+            } else if (Array.isArray(content)) {
+              const hasToolResult = content.some(b => b.type === 'tool_result');
+              if (!hasToolResult) {
+                const tb = content.find(b => b.type === 'text');
+                if (tb?.text) preview = tb.text.slice(0, 150).trim();
+              }
             }
           }
         } else if (parsed.type === 'assistant') {
