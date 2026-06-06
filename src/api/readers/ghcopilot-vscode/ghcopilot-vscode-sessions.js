@@ -178,4 +178,4 @@ async function getMessages(project, session) {
   return messages;
 }
 
-register('ghcopilot', { getProjects, getSessions, getMessages });
+register('ghcopilot-vscode', { getProjects, getSessions, getMessages });

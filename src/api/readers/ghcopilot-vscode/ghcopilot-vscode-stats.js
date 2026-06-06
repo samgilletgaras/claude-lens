@@ -1,6 +1,6 @@
 import { CACHE_TTL } from '../../utils.js';
 import { register } from '../stats.js';
-import { scanWorkspaces, streamJsonl } from './ghcopilot-sessions.js';
+import { scanWorkspaces, streamJsonl } from './ghcopilot-vscode-sessions.js';
 
 const _statsCache = new Map();
 
@@ -14,16 +14,18 @@ async function getStats(project = null) {
   const targets = project ? (workspaces.has(project) ? [project] : []) : [...workspaces.keys()];
 
   let sessions = 0, messages = 0, toolCalls = 0;
-  const activity = {}, topToolsMap = new Map();
+  const activity = {}, topToolsMap = new Map(), projectMsgCounts = {};
 
   for (const proj of targets) {
     const { files } = workspaces.get(proj);
     sessions += files.size;
+    let projMessages = 0;
     for (const [, fileInfo] of files) {
       try {
         await streamJsonl(fileInfo.filePath, event => {
           if (event.type !== 'user.message' && event.type !== 'assistant.message') return;
           messages++;
+          projMessages++;
           const ts = event.timestamp ? new Date(event.timestamp).getTime() : null;
           if (ts && isFinite(ts)) { const day = new Date(ts).toISOString().slice(0, 10); activity[day] = (activity[day] ?? 0) + 1; }
           if (event.type === 'assistant.message' && Array.isArray(event.data?.toolRequests)) {
@@ -32,16 +34,23 @@ async function getStats(project = null) {
         });
       } catch { /* skip */ }
     }
+    if (!project) projectMsgCounts[proj] = (projectMsgCounts[proj] ?? 0) + projMessages;
   }
+
+  const topProjects = project ? [] : Object.entries(projectMsgCounts)
+    .map(([id, messageCount]) => ({ id, messageCount, tokenCount: 0 }))
+    .sort((a, b) => b.messageCount - a.messageCount)
+    .slice(0, 10);
 
   const data = {
     totals: { sessions, messages, toolCalls },
     tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0 },
     models: {}, topTools: [...topToolsMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count })),
     activity, hooks: { success: 0, failure: 0, avgDurationMs: 0 }, estimatedCostUsd: 0,
+    stopReasons: {}, topProjects,
   };
   _statsCache.set(key, { data, time: now });
   return data;
 }
 
-register('ghcopilot', { getStats });
+register('ghcopilot-vscode', { getStats });

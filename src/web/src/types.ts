@@ -1,13 +1,21 @@
-export type Provider = 'claude' | 'ghcopilot';
+export type Provider = string;
 
 export interface ProviderCapabilities {
   hasHistory: boolean;
   hasStats: boolean;
   hasLogs: boolean;
   hasSkills: boolean;
+  hasAgents: boolean;
   hasMcps: boolean;
   hasMemory: boolean;
   hasPlans: boolean;
+}
+
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  available: boolean;
+  capabilities: ProviderCapabilities;
 }
 
 export interface Block {
@@ -101,6 +109,7 @@ export interface MCPServer {
   totalCalls: number;
   lastUsed: number | null;
   auth?: { authenticated: boolean; timestamp: number };
+  source?: string;
 }
 
 export interface MCPTool {

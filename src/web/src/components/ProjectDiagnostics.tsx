@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ProjectStats, Provider } from '../types';
+import type { ProjectStats } from '../types';
 import { fmt, apiUrl } from '../utils';
 import { ActivityHeatmap } from './ActivityHeatmap';
 
@@ -37,7 +37,7 @@ function BarRow({ label, value, max, color = 'bg-lens-accent/40' }: { label: str
   );
 }
 
-export function ProjectDiagnostics({ projectId, demoMode, provider = 'claude' }: { projectId: string; demoMode?: boolean; provider?: Provider }) {
+export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string; demoMode?: boolean }) {
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function ProjectDiagnostics({ projectId, demoMode, provider = 'claude' }:
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(apiUrl(`/api/stats?project=${encodeURIComponent(projectId)}`, demoMode ?? false, provider))
+    fetch(apiUrl(`/api/stats?project=${encodeURIComponent(projectId)}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -83,13 +83,6 @@ export function ProjectDiagnostics({ projectId, demoMode, provider = 'claude' }:
   return (
     <div className="flex-1 overflow-y-auto w-full">
       <div className="p-8 max-w-7xl mx-auto">
-        {provider === 'ghcopilot' && (
-          <div className="mb-6 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20">
-            <span className="text-sky-400 text-xs font-medium">GitHub Copilot</span>
-            <span className="text-lens-text-dim text-xs">— token counts and cost are not tracked in Copilot transcripts</span>
-          </div>
-        )}
-
         {/* Summary cards */}
         <div className={`grid gap-4 mb-6 ${hasTokenData ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'}`}>
           <StatCard label="Sessions" value={stats.totals.sessions.toLocaleString()} />

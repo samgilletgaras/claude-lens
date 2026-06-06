@@ -1,23 +1,24 @@
 import { useEffect, useState, useRef } from 'react';
-import type { ConversationSummary, ProjectSummary, Block, Message, AttachmentContent, Provider, ProviderCapabilities } from './types';
+import type { ConversationSummary, ProjectSummary, Block, Message, AttachmentContent, Provider, ProviderInfo, ProviderCapabilities } from './types';
 import { MessageBubble } from './components/MessageBubble';
-import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug, RefreshCw, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X, Brain, ClipboardList, Settings } from 'lucide-react';
+import { MessageSquare, Clock, FolderOpen, ArrowLeft, Activity, Layers, Plug, RefreshCw, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X, Brain, ClipboardList, Settings, Bot } from 'lucide-react';
 import { LogsViewer } from './components/LogsViewer';
 import { SkillsViewer } from './components/SkillsViewer';
+import { AgentsViewer } from './components/AgentsViewer';
 import { MCPsViewer } from './components/MCPsViewer';
 import { MemoryViewer } from './components/MemoryViewer';
 import { PlansViewer } from './components/PlansViewer';
 import { ProjectDiagnostics } from './components/ProjectDiagnostics';
 import { SettingsViewer } from './components/SettingsViewer';
-import { prettifyProjectName, formatRelative, fmt, formatDuration, apiUrl } from './utils';
+import { prettifyProjectName, formatRelative, fmt, formatDuration, apiUrl, slugify } from './utils';
 
 const SESSION_PAGE_SIZE = 20;
-const VALID_VIEWS = ['history', 'logs', 'skills', 'mcps', 'memory', 'plans', 'settings'] as const;
+const VALID_VIEWS = ['history', 'logs', 'skills', 'agents', 'mcps', 'memory', 'plans', 'settings'] as const;
 type AppView = typeof VALID_VIEWS[number];
 
-const PROVIDER_CAPABILITIES: Record<Provider, ProviderCapabilities> = {
-  claude:    { hasHistory: true, hasStats: true, hasLogs: true,  hasSkills: true,  hasMcps: true,  hasMemory: true,  hasPlans: true  },
-  ghcopilot: { hasHistory: true, hasStats: true, hasLogs: false, hasSkills: false, hasMcps: false, hasMemory: false, hasPlans: false },
+const NO_CAPABILITIES: ProviderCapabilities = {
+  hasHistory: false, hasStats: false, hasLogs: false, hasSkills: false,
+  hasAgents: false, hasMcps: false, hasMemory: false, hasPlans: false,
 };
 
 function extractMessageText(msg: Message): string {
@@ -114,11 +115,15 @@ function App() {
     if (saved === 'tycho' || saved === 'parchment') return saved;
     return 'default';
   });
-  const [provider, setProvider] = useState<Provider>(() => {
-    return localStorage.getItem('lens-provider') === 'ghcopilot' ? 'ghcopilot' : 'claude';
+  const [provider, setProvider] = useState<Provider | null>(() => {
+    const MIGRATIONS: Record<string, Provider> = { ghcopilot: 'ghcopilot-vscode' };
+    const raw = localStorage.getItem('lens-provider');
+    if (!raw) return null;
+    const p = MIGRATIONS[raw] ?? raw;
+    if (p !== raw) localStorage.setItem('lens-provider', p);
+    return p;
   });
-  const [hasClaudeDir, setHasClaudeDir] = useState(true);
-  const [hasGhcopilotDir, setHasGhcopilotDir] = useState(false);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
 
   const sessionScrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -142,14 +147,21 @@ function App() {
   }
 
   useEffect(() => {
-    fetch('/api/health')
+    fetch('/api/config')
       .then(r => r.json())
       .then(r => {
-        const hasC = r.data?.hasClaudeDir ?? true;
-        const hasP = r.data?.hasGhcopilotDir ?? false;
-        setHasClaudeDir(hasC);
-        setHasGhcopilotDir(hasP);
-        if (!hasC && !hasP && localStorage.getItem('lens-demo-mode') === null) {
+        const list: ProviderInfo[] = r.data?.providers ?? [];
+        setProviders(list);
+        // Resolve the active provider: keep the saved one if it still exists,
+        // otherwise fall back to the first available (or first registered) provider.
+        setProvider(prev => {
+          if (prev && list.some(p => p.id === prev)) return prev;
+          const chosen = (list.find(p => p.available) ?? list[0])?.id ?? null;
+          if (chosen) localStorage.setItem('lens-provider', chosen);
+          return chosen;
+        });
+        // Auto-enable demo mode when no provider has real data and the user hasn't chosen.
+        if (list.length > 0 && list.every(p => !p.available) && localStorage.getItem('lens-demo-mode') === null) {
           setDemoMode(true);
         }
       })
@@ -157,7 +169,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetch(apiUrl('/api/projects', demoMode, provider))
+    if (!provider) return;
+    fetch(apiUrl('/api/projects', demoMode))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -169,7 +182,7 @@ function App() {
   useEffect(() => {
     if (!activeProjectId) return;
     const key = `${activeProjectId}:${sessionsPage}`;
-    fetch(apiUrl(`/api/history?project=${encodeURIComponent(activeProjectId)}&page=${sessionsPage}&pageSize=${SESSION_PAGE_SIZE}`, demoMode, provider))
+    fetch(apiUrl(`/api/history?project=${encodeURIComponent(activeProjectId)}&page=${sessionsPage}&pageSize=${SESSION_PAGE_SIZE}`, demoMode))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -228,7 +241,7 @@ function App() {
   useEffect(() => {
     if (!activeProjectId || !activeSessionId) { setActiveMessages([]); return; }
     setMessagesLoading(true);
-    fetch(apiUrl(`/api/messages?project=${encodeURIComponent(activeProjectId)}&session=${encodeURIComponent(activeSessionId)}`, demoMode, provider))
+    fetch(apiUrl(`/api/messages?project=${encodeURIComponent(activeProjectId)}&session=${encodeURIComponent(activeSessionId)}`, demoMode))
       .then(r => r.json())
       .then(r => setActiveMessages(r.data || []))
       .catch(() => setActiveMessages([]))
@@ -287,12 +300,12 @@ function App() {
     setSessions([]);
     setSessionsPage(0);
     setLoadedKey(null);
-    const caps = PROVIDER_CAPABILITIES[p];
+    const caps = providers.find(x => x.id === p)?.capabilities;
     const viewCapMap: Partial<Record<AppView, keyof ProviderCapabilities>> = {
-      logs: 'hasLogs', skills: 'hasSkills', mcps: 'hasMcps', memory: 'hasMemory', plans: 'hasPlans',
+      logs: 'hasLogs', skills: 'hasSkills', agents: 'hasAgents', mcps: 'hasMcps', memory: 'hasMemory', plans: 'hasPlans',
     };
     const capKey = viewCapMap[currentView as AppView];
-    if (capKey && !caps[capKey]) setCurrentView('history');
+    if (capKey && caps && !caps[capKey]) setCurrentView('history');
     refresh();
   }
 
@@ -347,8 +360,9 @@ function App() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [activeProjectId, activeSessionId, sortedSessions, activeConv]);
 
-  const isClaudeProvider = provider === 'claude';
-  const capabilities = PROVIDER_CAPABILITIES[provider];
+  const activeProviderInfo = providers.find(p => p.id === provider) ?? null;
+  const capabilities = activeProviderInfo?.capabilities ?? NO_CAPABILITIES;
+  const providerBadgeClass = `provider-badge provider-badge-${provider ? slugify(provider) : ''}`;
 
   return (
     <div className="flex h-screen bg-lens-bg text-lens-text-body font-sans overflow-hidden">
@@ -360,11 +374,9 @@ function App() {
             <h1 className="text-xl font-medium tracking-tight text-lens-text">Claude Lens</h1>
             <div className="flex items-center gap-2 mt-1">
               <p className="text-xs text-lens-text-dim">Local History Explorer</p>
-              {isClaudeProvider ? (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-lens-accent/15 text-lens-accent border border-lens-accent/25 shrink-0">Claude</span>
-              ) : (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/25 shrink-0">GH Copilot</span>
-              )}
+              <span className={`text-[9px] px-1.5 py-0.5 rounded border shrink-0 ${providerBadgeClass}`}>
+                {activeProviderInfo?.name ?? ''}
+              </span>
             </div>
           </div>
         )}
@@ -389,6 +401,11 @@ function App() {
                   {capabilities.hasSkills && (
                     <button onClick={() => { setCurrentView('skills'); closeProject(); }} title="Skills" className={`w-full flex justify-center p-2 rounded transition-colors ${currentView === 'skills' ? 'bg-lens-border/60 text-lens-text' : 'text-lens-text-sub hover:text-lens-text hover:bg-lens-border/30'}`}>
                       <Layers className="w-4 h-4" />
+                    </button>
+                  )}
+                  {capabilities.hasAgents && (
+                    <button onClick={() => { setCurrentView('agents'); closeProject(); }} title="Agents" className={`w-full flex justify-center p-2 rounded transition-colors ${currentView === 'agents' ? 'bg-lens-border/60 text-lens-text' : 'text-lens-text-sub hover:text-lens-text hover:bg-lens-border/30'}`}>
+                      <Bot className="w-4 h-4" />
                     </button>
                   )}
                   {capabilities.hasMcps && (
@@ -429,6 +446,11 @@ function App() {
                   {capabilities.hasSkills && (
                     <button onClick={() => { setCurrentView('skills'); closeProject(); }} className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center ${currentView === 'skills' ? 'bg-lens-border/60 text-lens-text' : 'text-lens-text-sub hover:text-lens-text hover:bg-lens-border/30'}`}>
                       <Layers className="w-4 h-4 mr-2 shrink-0" /> Skills
+                    </button>
+                  )}
+                  {capabilities.hasAgents && (
+                    <button onClick={() => { setCurrentView('agents'); closeProject(); }} className={`w-full text-left px-3 py-2 rounded text-sm transition-colors flex items-center ${currentView === 'agents' ? 'bg-lens-border/60 text-lens-text' : 'text-lens-text-sub hover:text-lens-text hover:bg-lens-border/30'}`}>
+                      <Bot className="w-4 h-4 mr-2 shrink-0" /> Agents
                     </button>
                   )}
                   {capabilities.hasMcps && (
@@ -561,11 +583,13 @@ function App() {
           </div>
         )}
         {currentView === 'settings' ? (
-          <SettingsViewer demoMode={demoMode} hasClaudeDir={hasClaudeDir} hasGhcopilotDir={hasGhcopilotDir} provider={provider} onProviderChange={handleProviderChange} onToggle={handleDemoToggle} theme={theme} onThemeChange={handleThemeChange} />
+          <SettingsViewer demoMode={demoMode} providers={providers} provider={provider} onProviderChange={handleProviderChange} onToggle={handleDemoToggle} theme={theme} onThemeChange={handleThemeChange} />
         ) : currentView === 'logs' ? (
           <LogsViewer key={refreshKey} demoMode={demoMode} />
         ) : currentView === 'skills' ? (
           <SkillsViewer key={refreshKey} demoMode={demoMode} />
+        ) : currentView === 'agents' ? (
+          <AgentsViewer key={refreshKey} demoMode={demoMode} />
         ) : currentView === 'mcps' ? (
           <MCPsViewer key={refreshKey} demoMode={demoMode} />
         ) : currentView === 'memory' ? (
@@ -664,7 +688,7 @@ function App() {
               <button onClick={() => setCollapseSignal(s => s + 1)} className="px-2 py-1 text-[10px] rounded bg-lens-border/80 hover:bg-lens-hover text-lens-text-sub hover:text-lens-text transition-colors shrink-0">
                 Collapse all
               </button>
-              <button onClick={() => exportSession(activeConv, activeMessages, provider === 'ghcopilot' ? 'Copilot' : 'Claude')} className="px-2 py-1 text-[10px] rounded bg-lens-border/80 hover:bg-lens-hover text-lens-text-sub hover:text-lens-text transition-colors shrink-0">
+              <button onClick={() => exportSession(activeConv, activeMessages, activeProviderInfo?.name ?? 'Assistant')} className="px-2 py-1 text-[10px] rounded bg-lens-border/80 hover:bg-lens-hover text-lens-text-sub hover:text-lens-text transition-colors shrink-0">
                 Export ↓
               </button>
             </div>
@@ -709,7 +733,7 @@ function App() {
             </div>
           </div>
         ) : activeProjectId !== null && !activeConv ? (
-          <ProjectDiagnostics key={activeProjectId} projectId={activeProjectId} demoMode={demoMode} provider={provider} />
+          <ProjectDiagnostics key={activeProjectId} projectId={activeProjectId} demoMode={demoMode} />
         ) : (
           <div className="flex-1 flex items-center justify-center text-lens-text-dim">
             <div className="text-center">

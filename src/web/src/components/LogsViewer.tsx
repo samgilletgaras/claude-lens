@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
 import type { DiagnosticsStats } from '../types';
-import { prettifyProjectName, fmt } from '../utils';
+import { prettifyProjectName, fmt, apiUrl } from '../utils';
 import { ActivityHeatmap } from './ActivityHeatmap';
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -44,7 +44,10 @@ export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(demoMode ? '/api/stats?demo=true' : '/api/stats')
+    setLoading(true);
+    setError(null);
+    setStats(null);
+    fetch(apiUrl('/api/stats', demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -55,7 +58,7 @@ export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [demoMode]);
 
   if (loading) {
     return (
@@ -74,15 +77,23 @@ export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
   }
 
   const totalTokens = stats.tokens.input + stats.tokens.output;
-  const maxStopReason = Math.max(...Object.values(stats.stopReasons), 1);
-  const maxModel = Math.max(...Object.values(stats.models), 1);
+  const hasTokens = totalTokens > 0;
+  const stopReasons = stats.stopReasons ?? {};
+  const sortedStopReasons = Object.entries(stopReasons).sort((a, b) => b[1] - a[1]);
+  const maxStopReason = Math.max(...sortedStopReasons.map(([, v]) => v), 1);
+  const sortedModels = Object.entries(stats.models).sort((a, b) => b[1] - a[1]);
+  const maxModel = Math.max(...sortedModels.map(([, v]) => v), 1);
   const maxToken = Math.max(stats.tokens.input, stats.tokens.output, stats.tokens.cacheRead, stats.tokens.cacheCreation, 1);
-  const maxProjectMsgs = Math.max(...stats.topProjects.map(p => p.messageCount), 1);
+  const topProjects = stats.topProjects ?? [];
+  const maxProjectMsgs = Math.max(...topProjects.map(p => p.messageCount), 1);
+  const hasHooks = stats.hooks.success + stats.hooks.failure > 0;
+  const topTools = (stats as DiagnosticsStats & { topTools?: { name: string; count: number }[] }).topTools ?? [];
+  const hasTokensInProjects = topProjects.some(p => p.tokenCount > 0);
 
   const stopReasonOrder = ['tool_use', 'end_turn', 'max_tokens', 'stop_sequence'];
-  const sortedStopReasons = [
-    ...stopReasonOrder.filter(k => stats.stopReasons[k] !== undefined).map(k => [k, stats.stopReasons[k]] as [string, number]),
-    ...Object.entries(stats.stopReasons).filter(([k]) => !stopReasonOrder.includes(k)),
+  const orderedStopReasons = [
+    ...stopReasonOrder.filter(k => stopReasons[k] !== undefined).map(k => [k, stopReasons[k]] as [string, number]),
+    ...sortedStopReasons.filter(([k]) => !stopReasonOrder.includes(k)),
   ];
 
   return (
@@ -95,25 +106,27 @@ export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
         </div>
         <p className="text-lens-text-dim text-sm mb-6">Aggregated from all session history</p>
 
-        {/* Heatmap — always render, handles empty gracefully */}
+        {/* Heatmap */}
         <div className="bg-lens-surface border border-lens-border rounded-lg p-4 mb-6">
           <ActivityHeatmap activity={stats.activity ?? {}} />
         </div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Summary cards — token cards only when data exists */}
+        <div className={`grid gap-4 mb-6 ${hasTokens ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'}`}>
           <StatCard label="Sessions" value={stats.totals.sessions.toLocaleString()} />
           <StatCard label="Messages" value={fmt(stats.totals.messages)} />
-          <StatCard label="Total Tokens" value={fmt(totalTokens)} sub={`${fmt(stats.totals.toolCalls)} tool calls`} />
-          <StatCard
-            label="Cache Hit Rate"
-            value={`${stats.tokens.cacheHitRate}%`}
-            sub={`${fmt(stats.tokens.cacheRead)} tokens from cache`}
-          />
+          {hasTokens ? (
+            <>
+              <StatCard label="Total Tokens" value={fmt(totalTokens)} sub={`${fmt(stats.totals.toolCalls)} tool calls`} />
+              <StatCard label="Cache Hit Rate" value={`${stats.tokens.cacheHitRate}%`} sub={`${fmt(stats.tokens.cacheRead)} tokens from cache`} />
+            </>
+          ) : (
+            <StatCard label="Tool Calls" value={fmt(stats.totals.toolCalls)} />
+          )}
         </div>
 
-        {/* Cost estimate */}
-        {stats.estimatedCostUsd !== undefined && (
+        {/* Cost estimate — only when non-zero */}
+        {stats.estimatedCostUsd > 0 && (
           <div className="bg-lens-surface border border-lens-border rounded-lg p-4 mb-6 flex items-center justify-between">
             <div>
               <div className="text-[10px] uppercase tracking-wider text-lens-text-dim mb-1">Estimated Cost</div>
@@ -127,88 +140,103 @@ export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
           </div>
         )}
 
-        {/* Stop reasons + Models */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <Panel title="Stop Reasons">
-            {sortedStopReasons.length === 0
-              ? <p className="text-lens-text-faint text-xs italic">No data</p>
-              : sortedStopReasons.map(([reason, count]) => (
+        {/* Top tools (present in per-provider global stats when applicable) */}
+        {topTools.length > 0 && (
+          <div className="mb-4">
+            <Panel title="Top Tools">
+              {topTools.map(t => (
+                <BarRow key={t.name} label={t.name} value={t.count} max={Math.max(...topTools.map(x => x.count), 1)} color="bg-lens-accent/40" />
+              ))}
+            </Panel>
+          </div>
+        )}
+
+        {/* Stop reasons + Models — only when non-empty */}
+        {(orderedStopReasons.length > 0 || sortedModels.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {orderedStopReasons.length > 0 && (
+              <Panel title="Stop Reasons">
+                {orderedStopReasons.map(([reason, count]) => (
                   <BarRow key={reason} label={reason} value={count} max={maxStopReason} color="bg-lens-accent/40" />
-                ))
-            }
-          </Panel>
-          <Panel title="Models Used">
-            {Object.keys(stats.models).length === 0
-              ? <p className="text-lens-text-faint text-xs italic">No data</p>
-              : Object.entries(stats.models)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([model, count]) => (
-                    <BarRow key={model} label={model} value={count} max={maxModel} color="bg-sky-500/40" />
-                  ))
-            }
-          </Panel>
-        </div>
+                ))}
+              </Panel>
+            )}
+            {sortedModels.length > 0 && (
+              <Panel title="Models Used">
+                {sortedModels.map(([model, count]) => (
+                  <BarRow key={model} label={model} value={count} max={maxModel} color="bg-sky-500/40" />
+                ))}
+              </Panel>
+            )}
+          </div>
+        )}
 
-        {/* Token breakdown + Hook health */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <Panel title="Token Breakdown">
-            <BarRow label="Input" value={stats.tokens.input} max={maxToken} color="bg-violet-500/40" />
-            <BarRow label="Output" value={stats.tokens.output} max={maxToken} color="bg-emerald-500/40" />
-            <BarRow label="Cache Read" value={stats.tokens.cacheRead} max={maxToken} color="bg-sky-500/40" />
-            <BarRow label="Cache Created" value={stats.tokens.cacheCreation} max={maxToken} color="bg-lens-border/80" />
-          </Panel>
-          <Panel title="Hook Health">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-sm text-lens-text-sub">Successes</span>
+        {/* Token breakdown + Hook health — only when data exists */}
+        {(hasTokens || hasHooks) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {hasTokens && (
+              <Panel title="Token Breakdown">
+                <BarRow label="Input" value={stats.tokens.input} max={maxToken} color="bg-violet-500/40" />
+                <BarRow label="Output" value={stats.tokens.output} max={maxToken} color="bg-emerald-500/40" />
+                <BarRow label="Cache Read" value={stats.tokens.cacheRead} max={maxToken} color="bg-sky-500/40" />
+                <BarRow label="Cache Created" value={stats.tokens.cacheCreation} max={maxToken} color="bg-lens-border/80" />
+              </Panel>
+            )}
+            {hasHooks && (
+              <Panel title="Hook Health">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-sm text-lens-text-sub">Successes</span>
+                    </div>
+                    <span className="text-lens-text tabular-nums font-medium">{stats.hooks.success.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-rose-500" />
+                      <span className="text-sm text-lens-text-sub">Failures</span>
+                    </div>
+                    <span className="text-lens-text tabular-nums font-medium">{stats.hooks.failure.toLocaleString()}</span>
+                  </div>
+                  {stats.hooks.success + stats.hooks.failure > 0 && (
+                    <div className="flex items-center justify-between border-t border-lens-border pt-3">
+                      <span className="text-sm text-lens-text-sub">Success Rate</span>
+                      <span className="text-lens-text font-medium">
+                        {Math.round((stats.hooks.success / (stats.hooks.success + stats.hooks.failure)) * 100)}%
+                      </span>
+                    </div>
+                  )}
+                  {stats.hooks.avgDurationMs > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-lens-text-sub">Avg Duration</span>
+                      <span className="text-lens-text font-medium tabular-nums">{stats.hooks.avgDurationMs}ms</span>
+                    </div>
+                  )}
                 </div>
-                <span className="text-lens-text tabular-nums font-medium">{stats.hooks.success.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span className="text-sm text-lens-text-sub">Failures</span>
-                </div>
-                <span className="text-lens-text tabular-nums font-medium">{stats.hooks.failure.toLocaleString()}</span>
-              </div>
-              {stats.hooks.success + stats.hooks.failure > 0 && (
-                <div className="flex items-center justify-between border-t border-lens-border pt-3">
-                  <span className="text-sm text-lens-text-sub">Success Rate</span>
-                  <span className="text-lens-text font-medium">
-                    {Math.round((stats.hooks.success / (stats.hooks.success + stats.hooks.failure)) * 100)}%
-                  </span>
-                </div>
-              )}
-              {stats.hooks.avgDurationMs > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-lens-text-sub">Avg Duration</span>
-                  <span className="text-lens-text font-medium tabular-nums">{stats.hooks.avgDurationMs}ms</span>
-                </div>
-              )}
-            </div>
-          </Panel>
-        </div>
+              </Panel>
+            )}
+          </div>
+        )}
 
-        {/* Top projects */}
-        {stats.topProjects.length > 0 && (
+        {/* Top projects — tokens column only when data exists */}
+        {topProjects.length > 0 && (
           <Panel title="Top Projects by Activity">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-lens-border">
                   <th className="text-left py-2 text-[10px] uppercase tracking-wider text-lens-text-dim font-normal">Project</th>
                   <th className="text-right py-2 text-[10px] uppercase tracking-wider text-lens-text-dim font-normal">Messages</th>
-                  <th className="text-right py-2 text-[10px] uppercase tracking-wider text-lens-text-dim font-normal">Tokens</th>
+                  {hasTokensInProjects && <th className="text-right py-2 text-[10px] uppercase tracking-wider text-lens-text-dim font-normal">Tokens</th>}
                   <th className="w-1/3 py-2 pl-4"></th>
                 </tr>
               </thead>
               <tbody>
-                {stats.topProjects.map(proj => (
+                {topProjects.map(proj => (
                   <tr key={proj.id} className="border-b border-lens-border/50 last:border-0">
                     <td className="py-2 text-lens-text-body truncate max-w-[200px]">{prettifyProjectName(proj.id)}</td>
                     <td className="py-2 text-right text-lens-text-sub tabular-nums">{proj.messageCount.toLocaleString()}</td>
-                    <td className="py-2 text-right text-lens-text-sub tabular-nums">{fmt(proj.tokenCount)}</td>
+                    {hasTokensInProjects && <td className="py-2 text-right text-lens-text-sub tabular-nums">{fmt(proj.tokenCount)}</td>}
                     <td className="py-2 pl-4">
                       <div className="h-1.5 bg-lens-border rounded-full overflow-hidden">
                         <div

@@ -29,6 +29,11 @@
   --color-lens-heat-3:     #b35c08;
   --color-lens-heat-4:     #f59e0b;
   --color-lens-heat-5:     #fbbf24;
+
+  /* Provider badge colors — keyed by provider slug (see .provider-badge-* below).
+     Add a token + class here when adding a provider; can be overridden per theme. */
+  --color-provider-claude:          var(--color-lens-accent);
+  --color-provider-ghcopilotvscode: #38bdf8;   /* sky-400 */
 }
 
 [data-theme="tycho"] {
@@ -95,6 +100,19 @@
   --tw-prose-pre-bg:        var(--color-lens-deep);
   --tw-prose-th-borders:    var(--color-lens-border);
   --tw-prose-td-borders:    var(--color-lens-border-hi);
+}
+
+/* Provider badge: colors keyed by provider slug. The element keeps its own
+   sizing/rounding/border utilities; these classes only supply the palette.
+   `.provider-badge` is the neutral fallback for any provider without a slug class. */
+.provider-badge {
+  @apply bg-lens-border/40 text-lens-text-sub border-lens-border;
+}
+.provider-badge-claude {
+  @apply bg-provider-claude/15 text-provider-claude border-provider-claude/25;
+}
+.provider-badge-ghcopilotvscode {
+  @apply bg-provider-ghcopilotvscode/15 text-provider-ghcopilotvscode border-provider-ghcopilotvscode/25;
 }
 
 body {

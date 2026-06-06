@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plug, ArrowLeft, Search, CheckCircle } from 'lucide-react';
 import type { MCPServer, MCPServerDetail } from '../types';
+import { apiUrl } from '../utils';
 
 function TypeBadge({ type }: { type: 'plugin' | 'cloud' }) {
   return type === 'cloud'
@@ -23,7 +24,7 @@ export function MCPsViewer({ demoMode }: { demoMode?: boolean }) {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    fetch(demoMode ? '/api/mcps?demo=true' : '/api/mcps')
+    fetch(apiUrl('/api/mcps', demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -34,13 +35,13 @@ export function MCPsViewer({ demoMode }: { demoMode?: boolean }) {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [demoMode]);
 
   function openServer(server: MCPServer) {
     setSelected(server);
     setDetail(null);
     setDetailLoading(true);
-    fetch(`/api/mcps?server=${encodeURIComponent(server.id)}${demoMode ? '&demo=true' : ''}`)
+    fetch(apiUrl(`/api/mcps?server=${encodeURIComponent(server.id)}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         setDetail(res.data ?? null);
@@ -92,10 +93,11 @@ export function MCPsViewer({ demoMode }: { demoMode?: boolean }) {
                 ) : (
                   <div className="text-lens-text-dim text-sm">Hosted by claude.ai</div>
                 )}
-                <div className="mt-3 flex gap-4 text-xs text-lens-text-dim">
+                <div className="mt-3 flex gap-4 text-xs text-lens-text-dim flex-wrap">
                   <span>{selected.totalCalls.toLocaleString()} total calls</span>
                   <span>{selected.toolCount} tools used</span>
                   {selected.lastUsed && <span>Last used {formatDate(selected.lastUsed)}</span>}
+                  {selected.source && <span className="font-mono text-lens-text-faint truncate">{selected.source}</span>}
                 </div>
               </div>
 

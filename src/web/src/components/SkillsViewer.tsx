@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Layers, ArrowLeft, Search, Zap } from 'lucide-react';
 import type { Skill, SkillDetail } from '../types';
+import { apiUrl } from '../utils';
 
 const META_LABEL: Record<string, string> = {
   name: 'Name',
@@ -29,7 +30,7 @@ export function SkillsViewer({ demoMode }: { demoMode?: boolean }) {
   const [contentLoading, setContentLoading] = useState(false);
 
   useEffect(() => {
-    fetch(demoMode ? '/api/skills?demo=true' : '/api/skills')
+    fetch(apiUrl('/api/skills', demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -40,14 +41,14 @@ export function SkillsViewer({ demoMode }: { demoMode?: boolean }) {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [demoMode]);
 
   function openSkill(skill: Skill) {
     setSelectedSkill(skill);
     setSkillDetail(null);
     if (!skill.hasSkillMd) return;
     setContentLoading(true);
-    fetch(`/api/skills?slug=${encodeURIComponent(skill.slug)}${demoMode ? '&demo=true' : ''}`)
+    fetch(apiUrl(`/api/skills?slug=${encodeURIComponent(skill.slug)}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         setSkillDetail(res.data ?? null);
@@ -135,7 +136,7 @@ export function SkillsViewer({ demoMode }: { demoMode?: boolean }) {
   if (skills.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-lens-text-dim">
-        <p>No skills found in ~/.claude/skills</p>
+        <p>No skills found</p>
       </div>
     );
   }

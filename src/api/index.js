@@ -1,19 +1,29 @@
 import http from 'http';
-import fs from 'fs';
-import { PORT, CLAUDE_DIR, parseQuery } from './utils.js';
+import { PORT, parseQuery } from './utils.js';
 import { config } from './config.js';
 import * as demo from './demo-data.js';
+
+// Importing providers triggers all reader self-registrations
 import * as claudeProvider from './providers/claude.js';
-import * as ghcopilotProvider from './providers/ghcopilot.js';
+import * as ghcopilotProvider from './providers/ghcopilot-vscode.js';
+
 import * as sessions from './readers/sessions.js';
 import * as stats from './readers/stats.js';
-import { getLogs } from './readers/logs.js';
-import { scanSkillUsage, getSkills, getSkillDetail } from './readers/skills.js';
-import { scanMcpUsage, getMcps } from './readers/mcps.js';
+import * as logs from './readers/logs.js';
+import * as mcps from './readers/mcps.js';
+import * as skills from './readers/skills.js';
+import * as agents from './readers/agents.js';
 import { getMemory } from './readers/memory.js';
 import { getPlans } from './readers/plans.js';
 
-const PROVIDERS = { claude: claudeProvider, ghcopilot: ghcopilotProvider };
+// To add a new provider: create providers/x.js, import it here, add to PROVIDERS.
+const PROVIDERS = {
+  claude: claudeProvider,
+  'ghcopilot-vscode': ghcopilotProvider,
+};
+
+// Default provider when the request omits ?provider= — first registered one.
+const DEFAULT_PROVIDER = Object.keys(PROVIDERS)[0];
 
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -38,20 +48,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const providerName = q.get('provider') ?? 'claude';
+  const providerName = q.get('provider') ?? DEFAULT_PROVIDER;
 
   if (q.pathname === '/api/health') {
-    const availability = {};
-    for (const [name, p] of Object.entries(PROVIDERS)) {
-      const key = 'has' + name.charAt(0).toUpperCase() + name.slice(1) + 'Dir';
-      availability[key] = await p.isAvailable();
-    }
-    ok({ data: { ok: true, ...availability } });
+    ok({ data: { ok: true } });
     return;
   }
 
   if (q.pathname === '/api/config') {
-    ok({ data: config });
+    const providers = [];
+    for (const [id, p] of Object.entries(PROVIDERS)) {
+      providers.push({ id, name: p.name, capabilities: p.capabilities, available: await p.isAvailable() });
+    }
+    ok({ data: { ...config, providers } });
     return;
   }
 
@@ -65,8 +74,7 @@ const server = http.createServer(async (req, res) => {
     const project = q.get('project', null);
     if (!project) { err('project param required'); return; }
     if (q.get('demo')) {
-      const pool = demo.DEMO_SESSIONS;
-      const s = pool[project] || [];
+      const s = demo.DEMO_SESSIONS[project] || [];
       ok({ data: s, total: s.length, page: 0, pageSize: s.length });
       return;
     }
@@ -97,7 +105,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try {
-      const { data, total } = await getLogs(page, pageSize);
+      const { data, total } = await logs.getLogs(providerName, page, pageSize);
       ok({ data, total, page, pageSize });
     } catch(e) { err(e.message); }
     return;
@@ -126,11 +134,23 @@ const server = http.createServer(async (req, res) => {
     const slug = q.get('slug', null);
     if (slug) {
       if (q.get('demo')) { const d = demo.DEMO_SKILL_DETAIL[slug]; d ? ok({ data: d }) : err('Demo skill not found'); return; }
-      try { ok({ data: getSkillDetail(slug) }); } catch(e) { err(e.message); }
+      try { ok({ data: skills.getSkillDetail(providerName, slug) }); } catch(e) { err(e.message); }
       return;
     }
     if (q.get('demo')) { ok({ data: demo.DEMO_SKILLS }); return; }
-    try { ok({ data: await getSkills() }); } catch(e) { err(e.message); }
+    try { ok({ data: await skills.getSkills(providerName) }); } catch(e) { err(e.message); }
+    return;
+  }
+
+  if (q.pathname === '/api/agents') {
+    const slug = q.get('slug', null);
+    if (slug) {
+      if (q.get('demo')) { ok({ data: null }); return; }
+      try { ok({ data: agents.getAgentDetail(providerName, slug) }); } catch(e) { err(e.message); }
+      return;
+    }
+    if (q.get('demo')) { ok({ data: [] }); return; }
+    try { ok({ data: await agents.getAgents(providerName) }); } catch(e) { err(e.message); }
     return;
   }
 
@@ -146,7 +166,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try {
-      const data = await getMcps(mcpServer || null);
+      const data = await mcps.getMcps(providerName, mcpServer || null);
       if (mcpServer && !data) { err('Server not found'); return; }
       ok({ data });
     } catch(e) { err(e.message); }
@@ -191,10 +211,14 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Claude Lens CLI backend running on http://127.0.0.1:${PORT}`);
-  setImmediate(() => {
-    stats.getStats('claude').catch(() => {});
-    scanSkillUsage().catch(() => {});
-    scanMcpUsage().catch(() => {});
-    getLogs().catch(() => {});
+  // Warm up caches for every available provider on startup
+  setImmediate(async () => {
+    for (const [id, p] of Object.entries(PROVIDERS)) {
+      if (!(await p.isAvailable())) continue;
+      stats.getStats(id).catch(() => {});
+      skills.getSkills(id).catch(() => {});
+      mcps.getMcps(id).catch(() => {});
+      logs.getLogs(id).catch(() => {});
+    }
   });
 });

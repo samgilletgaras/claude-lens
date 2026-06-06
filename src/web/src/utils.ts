@@ -18,9 +18,19 @@ export function formatDuration(ms: number): string {
   return `${h}h ${min % 60}m`;
 }
 
-export function apiUrl(path: string, demoMode: boolean, provider: import('./types').Provider = 'claude'): string {
+const PROVIDER_MIGRATIONS: Record<string, string> = { ghcopilot: 'ghcopilot-vscode' };
+
+// CSS-safe slug for a provider id, e.g. 'ghcopilot-vscode' -> 'ghcopilotvscode'.
+// Used to pick the per-provider badge class defined in index.css.
+export function slugify(id: string): string {
+  return id.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+export function apiUrl(path: string, demoMode: boolean): string {
+  const raw = localStorage.getItem('lens-provider');
+  const provider = raw ? (PROVIDER_MIGRATIONS[raw] ?? raw) : null;
   let url = path;
-  if (provider !== 'claude') url += (url.includes('?') ? '&' : '?') + `provider=${provider}`;
+  if (provider) url += (url.includes('?') ? '&' : '?') + `provider=${provider}`;
   if (demoMode) url += (url.includes('?') ? '&' : '?') + 'demo=true';
   return url;
 }

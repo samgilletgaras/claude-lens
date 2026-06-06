@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
-import type { Provider } from '../types';
+import type { Provider, ProviderInfo } from '../types';
 import { apiUrl } from '../utils';
 
 const THEMES: { id: 'default' | 'tycho' | 'parchment'; name: string; colors: string[] }[] = [
@@ -11,16 +11,15 @@ const THEMES: { id: 'default' | 'tycho' | 'parchment'; name: string; colors: str
 
 interface Props {
   demoMode: boolean;
-  hasClaudeDir: boolean;
-  hasGhcopilotDir: boolean;
-  provider: Provider;
+  providers: ProviderInfo[];
+  provider: Provider | null;
   onProviderChange: (p: Provider) => void;
   onToggle: (value: boolean) => void;
   theme: 'default' | 'tycho' | 'parchment';
   onThemeChange: (t: 'default' | 'tycho' | 'parchment') => void;
 }
 
-export function SettingsViewer({ demoMode, hasClaudeDir, hasGhcopilotDir, provider, onProviderChange, onToggle, theme, onThemeChange }: Props) {
+export function SettingsViewer({ demoMode, providers, provider, onProviderChange, onToggle, theme, onThemeChange }: Props) {
   const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,6 +29,8 @@ export function SettingsViewer({ demoMode, hasClaudeDir, hasGhcopilotDir, provid
       .catch(() => {});
   }, [demoMode]);
 
+  const noneAvailable = providers.length > 0 && providers.every(p => !p.available);
+
   return (
     <div className="flex-1 overflow-y-auto w-full">
       <div className="p-8 max-w-7xl mx-auto">
@@ -38,12 +39,12 @@ export function SettingsViewer({ demoMode, hasClaudeDir, hasGhcopilotDir, provid
         </h2>
         <p className="text-lens-text-dim text-sm mb-8">Preferences are saved in your browser.</p>
 
-        {!hasClaudeDir && (
+        {noneAvailable && (
           <div className="mb-6 flex items-start gap-3 bg-lens-accent/10 border border-lens-accent/30 rounded-lg px-4 py-3">
             <span className="text-lens-accent text-lg mt-0.5">⚠</span>
             <div>
-              <div className="text-sm font-medium text-lens-accent">No ~/.claude directory detected</div>
-              <div className="text-xs text-lens-text-dim mt-0.5">Demo mode was enabled automatically. Toggle it off to view real data once Claude Code is set up.</div>
+              <div className="text-sm font-medium text-lens-accent">No provider data detected</div>
+              <div className="text-xs text-lens-text-dim mt-0.5">Demo mode was enabled automatically. Toggle it off to view real data once a supported assistant is set up.</div>
             </div>
           </div>
         )}
@@ -58,21 +59,21 @@ export function SettingsViewer({ demoMode, hasClaudeDir, hasGhcopilotDir, provid
               <div className="text-sm font-medium text-lens-text">Active Provider</div>
               <div className="text-xs text-lens-text-dim mt-0.5">Choose which AI assistant's history to browse.</div>
             </div>
-            <div className="flex gap-2 shrink-0 ml-6">
-              <button
-                onClick={() => onProviderChange('claude')}
-                className={`px-3 py-1.5 rounded text-xs border transition-colors ${provider === 'claude' ? 'border-lens-accent bg-lens-accent/10 text-lens-accent' : 'border-lens-border text-lens-text-sub hover:border-lens-border-hi'}`}
-              >
-                Claude Code
-              </button>
-              <button
-                onClick={() => onProviderChange('ghcopilot')}
-                disabled={!hasGhcopilotDir && !demoMode}
-                title={!hasGhcopilotDir && !demoMode ? 'No GitHub Copilot workspace data found' : undefined}
-                className={`px-3 py-1.5 rounded text-xs border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${provider === 'ghcopilot' ? 'border-lens-accent bg-lens-accent/10 text-lens-accent' : 'border-lens-border text-lens-text-sub hover:border-lens-border-hi'}`}
-              >
-                GitHub Copilot
-              </button>
+            <div className="flex gap-2 shrink-0 ml-6 flex-wrap justify-end">
+              {providers.map(p => {
+                const disabled = !p.available && !demoMode;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => onProviderChange(p.id)}
+                    disabled={disabled}
+                    title={disabled ? `No ${p.name} data found` : undefined}
+                    className={`px-3 py-1.5 rounded text-xs border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${provider === p.id ? 'border-lens-accent bg-lens-accent/10 text-lens-accent' : 'border-lens-border text-lens-text-sub hover:border-lens-border-hi'}`}
+                  >
+                    {p.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
