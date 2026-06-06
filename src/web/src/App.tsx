@@ -311,6 +311,18 @@ function App() {
     refresh();
   }
 
+  // Click the sidebar provider tag to switch to the next provider. Skips ones
+  // that aren't selectable (unavailable while demo mode is off), mirroring the
+  // Settings picker; falls back to cycling all if none are selectable.
+  function cycleProvider() {
+    if (providers.length < 2) return;
+    const selectable = providers.filter(p => p.available || demoMode);
+    const pool = selectable.length > 0 ? selectable : providers;
+    const idx = pool.findIndex(p => p.id === provider);
+    const next = pool[(idx + 1) % pool.length];
+    if (next && next.id !== provider) handleProviderChange(next.id);
+  }
+
   function handleThemeChange(t: 'default' | 'tycho' | 'parchment') {
     setTheme(t);
     localStorage.setItem('lens-theme', t);
@@ -542,14 +554,19 @@ function App() {
         {/* Active provider tag — sits directly above Settings */}
         {activeProviderInfo && (
           <div className={`shrink-0 ${sidebarCollapsed ? 'p-1 flex justify-center' : 'px-2 py-2'}`}>
+            {!sidebarCollapsed && providers.length > 1 && (
+              <p className="text-[9px] text-lens-text-faint mb-1 px-0.5">Tip: click to switch provider quickly</p>
+            )}
             {(() => { const Icon = iconFor(activeProviderInfo.icon); return (
-              <span
-                title={activeProviderInfo.name}
-                className={`flex items-center gap-1.5 rounded border ${providerBadgeClass} ${sidebarCollapsed ? 'p-1.5 justify-center' : 'px-2 py-1 text-[11px] w-full'}`}
+              <button
+                onClick={cycleProvider}
+                disabled={providers.length < 2}
+                title={providers.length < 2 ? activeProviderInfo.name : `${activeProviderInfo.name} — click to switch provider`}
+                className={`flex items-center gap-1.5 rounded border transition-colors enabled:hover:brightness-125 enabled:cursor-pointer disabled:cursor-default ${providerBadgeClass} ${sidebarCollapsed ? 'p-1.5 justify-center' : 'px-2 py-1 text-[11px] w-full'}`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">{activeProviderInfo.name}</span>}
-              </span>
+              </button>
             ); })()}
           </div>
         )}

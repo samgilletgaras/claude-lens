@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { parseFrontmatter } from '../../utils.js';
+import { parseFrontmatter, CACHE_TTL, isTmp } from '../../utils.js';
 import { getCandidateDirs, getUserDirs } from './ghcopilot-vscode-sessions.js';
 import { register } from '../memory.js';
+
+const _memoryCache = new Map();
 
 // VS Code's Copilot Chat "memory tool" persists plain-markdown memories under
 // <ext>/memory-tool/memories. There are two scopes:
@@ -67,6 +69,7 @@ function scanWorkspaceMemories() {
         folderPath = parsed.folder ? decodeWorkspaceUri(parsed.folder) : null;
       } catch { /* fall back to hash */ }
       folderPath ||= entry.name;
+      if (isTmp(path.basename(folderPath))) continue;
       const list = result.get(folderPath) ?? [];
       list.push(...files);
       result.set(folderPath, list);
@@ -88,6 +91,11 @@ function collectEntries() {
 }
 
 async function getMemory(project = null, filename = null) {
+  const key = `${project ?? ''}::${filename ?? ''}`;
+  const now = Date.now();
+  const cached = _memoryCache.get(key);
+  if (cached && now - cached.time < CACHE_TTL) return cached.data;
+
   const out = [];
   for (const e of collectEntries()) {
     if (project && e.project !== project) continue;
@@ -106,6 +114,7 @@ async function getMemory(project = null, filename = null) {
       });
     } catch(e) {}
   }
+  _memoryCache.set(key, { data: out, time: now });
   return out;
 }
 

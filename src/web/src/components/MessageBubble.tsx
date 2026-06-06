@@ -161,7 +161,7 @@ export function MessageBubble({ message, collapseSignal }: { message: Message, c
   }
 
   if (message.role === 'system') {
-    return <PipelineEvent timestamp={message.timestamp} icon={Zap} dotColor="bg-zinc-500" textColor="text-lens-text-sub/80 hover:text-lens-text-body" title="System Event" content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)} collapseSignal={collapseSignal} />;
+    return <PipelineEvent timestamp={message.timestamp} icon={Zap} dotColor="bg-lens-text-dim" textColor="text-lens-text-sub/80 hover:text-lens-text-body" title="System Event" content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)} collapseSignal={collapseSignal} />;
   }
 
   const isUser = message.role === 'user';

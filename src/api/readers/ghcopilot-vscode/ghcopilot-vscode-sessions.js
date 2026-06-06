@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import readline from 'readline';
-import { CACHE_TTL } from '../../utils.js';
+import { CACHE_TTL, isTmp } from '../../utils.js';
 import { register } from '../sessions.js';
 
 // ─── Workspace discovery ──────────────────────────────────────────────────────
@@ -26,10 +26,7 @@ export function getCandidateDirs() {
     const appSupport = path.join(home, 'Library', 'Application Support');
     return VSCODE_APP_NAMES.map(n => path.join(appSupport, n, 'User', 'workspaceStorage'));
   }
-  if (platform === 'win32') {
-    const appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
-    return VSCODE_APP_NAMES.map(n => path.join(appData, n, 'User', 'workspaceStorage'));
-  }
+  // Windows is intentionally out of scope (see CLAUDE.md data-sourcing rules).
   return [];
 }
 
@@ -61,7 +58,7 @@ export function scanWorkspaces() {
         const parsed = JSON.parse(fs.readFileSync(wsJson, 'utf8'));
         folderPath = parsed.folder ? decodeWorkspaceUri(parsed.folder) : null;
       } catch { continue; }
-      if (!folderPath) continue;
+      if (!folderPath || isTmp(path.basename(folderPath))) continue;
       let entries;
       try { entries = fs.readdirSync(tDir, { withFileTypes: true }); }
       catch { continue; }

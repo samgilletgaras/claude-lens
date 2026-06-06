@@ -9,7 +9,7 @@ type MemoryType = 'user' | 'feedback' | 'project' | 'reference';
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   user:      { bg: 'bg-purple-900/40',  text: 'text-purple-300',  border: 'border-purple-800/50' },
-  feedback:  { bg: 'bg-amber-900/30',   text: 'text-lens-accent', border: 'border-lens-accent/20' },
+  feedback:  { bg: 'bg-lens-accent/10',  text: 'text-lens-accent', border: 'border-lens-accent/20' },
   project:   { bg: 'bg-sky-900/40',     text: 'text-sky-400',     border: 'border-sky-800/50' },
   reference: { bg: 'bg-emerald-900/30', text: 'text-emerald-400', border: 'border-emerald-800/50' },
 };

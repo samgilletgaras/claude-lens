@@ -1,9 +1,16 @@
 import fs from 'fs';
 import path from 'path';
-import { PROJECTS_DIR, isTmp, parseFrontmatter } from '../../utils.js';
+import { PROJECTS_DIR, isTmp, parseFrontmatter, CACHE_TTL } from '../../utils.js';
 import { register } from '../memory.js';
 
+const _memoryCache = new Map();
+
 async function getMemory(project = null, filename = null) {
+  const key = `${project ?? ''}::${filename ?? ''}`;
+  const now = Date.now();
+  const cached = _memoryCache.get(key);
+  if (cached && now - cached.time < CACHE_TTL) return cached.data;
+
   const entries = [];
   if (!fs.existsSync(PROJECTS_DIR)) return entries;
 
@@ -36,6 +43,7 @@ async function getMemory(project = null, filename = null) {
       } catch(e) {}
     }
   }
+  _memoryCache.set(key, { data: entries, time: now });
   return entries;
 }
 
