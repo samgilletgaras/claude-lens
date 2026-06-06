@@ -87,7 +87,7 @@ export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
 
   return (
     <div className="flex-1 overflow-y-auto w-full">
-      <div className="p-8 max-w-6xl mx-auto">
+      <div className="p-8 max-w-7xl mx-auto">
         <div className="flex items-center mb-2">
           <h2 className="text-2xl font-semibold flex items-center">
             <Activity className="mr-3 text-lens-accent" /> Diagnostics

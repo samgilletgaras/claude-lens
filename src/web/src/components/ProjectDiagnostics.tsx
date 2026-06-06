@@ -81,7 +81,7 @@ export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string;
 
   return (
     <div className="flex-1 overflow-y-auto w-full">
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-8 max-w-7xl mx-auto">
         {/* Summary cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard label="Sessions" value={stats.totals.sessions.toLocaleString()} />

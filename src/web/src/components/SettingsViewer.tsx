@@ -19,7 +19,7 @@ export function SettingsViewer({ demoMode, hasClaudeDir, onToggle }: Props) {
   }, [demoMode]);
   return (
     <div className="flex-1 overflow-y-auto w-full">
-      <div className="p-8 max-w-2xl mx-auto">
+      <div className="p-8 max-w-7xl mx-auto">
         <h2 className="text-2xl font-semibold flex items-center mb-2">
           <Settings className="mr-3 text-lens-accent" /> Settings
         </h2>

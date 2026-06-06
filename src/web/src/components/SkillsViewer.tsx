@@ -67,7 +67,7 @@ export function SkillsViewer({ demoMode }: { demoMode?: boolean }) {
     const metaEntries = Object.entries(meta);
     return (
       <div className="flex-1 overflow-y-auto w-full">
-        <div className="px-4 md:px-8 pt-8 pb-16 max-w-4xl mx-auto">
+        <div className="p-8 max-w-7xl mx-auto">
           <button
             onClick={closeSkill}
             className="flex items-center text-lens-text-sub hover:text-lens-text text-sm mb-6 transition-colors"
@@ -151,7 +151,7 @@ export function SkillsViewer({ demoMode }: { demoMode?: boolean }) {
 
   return (
     <div className="flex-1 overflow-y-auto w-full">
-      <div className="p-8">
+      <div className="p-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-2xl font-semibold flex items-center">
             <Layers className="mr-3 text-lens-accent" /> Installed Skills
@@ -181,7 +181,7 @@ export function SkillsViewer({ demoMode }: { demoMode?: boolean }) {
         {filtered.length === 0 ? (
           <p className="text-lens-text-dim text-sm">No skills match &ldquo;{search}&rdquo;</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(skill => (
               <button
                 key={skill.slug}

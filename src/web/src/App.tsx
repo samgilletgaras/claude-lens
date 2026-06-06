@@ -496,8 +496,8 @@ function App() {
         ) : currentView === 'plans' ? (
           <PlansViewer key={refreshKey} demoMode={demoMode} />
         ) : activeProjectId === null ? (
-          <div className="flex-1 overflow-y-auto w-full p-8">
-            <div className="max-w-7xl mx-auto">
+          <div className="flex-1 overflow-y-auto w-full">
+            <div className="p-8 max-w-7xl mx-auto">
               <div className="flex items-center gap-3 mb-6">
                 <h2 className="text-2xl font-semibold flex items-center flex-1">
                   <FolderOpen className="mr-3 text-lens-accent" /> Select a Project
@@ -596,7 +596,7 @@ function App() {
                   Loading messages…
                 </div>
               )}
-              <div className="py-8 pb-32 px-4 md:px-8 lg:px-12 max-w-6xl mx-auto">
+              <div className="p-8 pb-32 max-w-7xl mx-auto">
                 {!messagesLoading && displayedMessages.map((msg, i) => (
                   <div
                     key={i}

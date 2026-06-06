@@ -44,7 +44,7 @@ function ProjectGroups({ entries, onOpen }: { entries: MemoryEntry[]; onOpen: (e
         const items = byProject[project];
         const isOpen = open[project] ?? false;
         return (
-          <div key={project} className="mb-4 max-w-7xl mx-auto">
+          <div key={project} className="mb-4">
             <button
               onClick={() => toggle(project)}
               className="flex items-center gap-2 w-full group mb-0 py-1"
@@ -132,7 +132,7 @@ export function MemoryViewer({ demoMode }: { demoMode?: boolean }) {
     const metaRows = Object.entries(meta).filter(([k, v]) => k !== 'name' && v != null && v !== '');
     return (
       <div className="flex-1 overflow-y-auto w-full">
-        <div className="px-4 md:px-8 pt-8 pb-16 max-w-4xl mx-auto">
+        <div className="p-8 max-w-7xl mx-auto">
           <button onClick={closeEntry} className="flex items-center text-lens-text-sub hover:text-lens-text text-sm mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Memory
           </button>
@@ -209,7 +209,7 @@ export function MemoryViewer({ demoMode }: { demoMode?: boolean }) {
 
   return (
     <div className="flex-1 overflow-y-auto w-full">
-      <div className="p-8">
+      <div className="p-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-2xl font-semibold flex items-center">
             <Brain className="mr-3 text-lens-accent" /> Memory
