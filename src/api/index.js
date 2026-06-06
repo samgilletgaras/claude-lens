@@ -1,5 +1,5 @@
 import http from 'http';
-import { PORT, parseQuery } from './utils.js';
+import { PORT, parseQuery, ALL_PROVIDER } from './utils.js';
 import { config } from './config.js';
 import * as demo from './demo-data.js';
 
@@ -58,9 +58,19 @@ const server = http.createServer(async (req, res) => {
   if (q.pathname === '/api/config') {
     const providers = [];
     for (const [id, p] of Object.entries(PROVIDERS)) {
-      providers.push({ id, name: p.name, capabilities: p.capabilities, available: await p.isAvailable() });
+      providers.push({ id, name: p.name, icon: p.icon ?? null, capabilities: p.capabilities, available: await p.isAvailable() });
     }
-    ok({ data: { ...config, providers } });
+    // Synthesize the "All Providers" meta-provider: union of every provider's
+    // capabilities, available if any provider is. Listed first and the default.
+    const capKeys = Object.keys(providers[0]?.capabilities ?? {});
+    const allEntry = {
+      id: ALL_PROVIDER,
+      name: 'All Providers',
+      icon: 'Boxes',
+      capabilities: Object.fromEntries(capKeys.map(k => [k, providers.some(p => p.capabilities[k])])),
+      available: providers.some(p => p.available),
+    };
+    ok({ data: { ...config, providers: [allEntry, ...providers], defaultProvider: ALL_PROVIDER } });
     return;
   }
 

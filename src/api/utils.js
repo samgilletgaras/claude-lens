@@ -10,6 +10,20 @@ export const PLANS_DIR = path.join(CLAUDE_DIR, 'plans');
 export const MCP_PLUGINS_DIR = path.join(CLAUDE_DIR, 'plugins/marketplaces/claude-plugins-official/external_plugins');
 export const CACHE_TTL = 60_000;
 
+// Reserved meta-provider id: aggregates data across every registered provider.
+// Not a real registered provider — synthesized in /api/config and fanned out in
+// the registry hubs. Project/memory ids are "packed" with their source provider
+// (e.g. `claude:::<id>`) so every drill-down routes back deterministically.
+export const ALL_PROVIDER = 'all';
+const ID_SEP = ':::';
+export const packId = (provider, id) => `${provider}${ID_SEP}${id}`;
+export function unpackId(packed) {
+  const i = packed.indexOf(ID_SEP);
+  return i === -1
+    ? { provider: null, id: packed }
+    : { provider: packed.slice(0, i), id: packed.slice(i + ID_SEP.length) };
+}
+
 export const MODEL_PRICING = {
   'claude-opus-4': [15, 75], 'claude-3-opus': [15, 75],
   'claude-sonnet-4': [3, 15], 'claude-3-5-sonnet': [3, 15], 'claude-3-sonnet': [3, 15],

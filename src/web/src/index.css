@@ -32,8 +32,9 @@
 
   /* Provider badge colors — keyed by provider slug (see .provider-badge-* below).
      Add a token + class here when adding a provider; can be overridden per theme. */
-  --color-provider-claude:          var(--color-lens-accent);
+  --color-provider-claude:          #d97757;   /* Claude Code orange (clay) */
   --color-provider-ghcopilotvscode: #38bdf8;   /* sky-400 */
+  --color-provider-all:             var(--color-lens-accent);   /* the "All Providers" meta-provider */
 }
 
 [data-theme="tycho"] {
@@ -113,6 +114,9 @@
 }
 .provider-badge-ghcopilotvscode {
   @apply bg-provider-ghcopilotvscode/15 text-provider-ghcopilotvscode border-provider-ghcopilotvscode/25;
+}
+.provider-badge-all {
+  @apply bg-provider-all/15 text-provider-all border-provider-all/25;
 }
 
 body {

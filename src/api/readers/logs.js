@@ -1,8 +1,24 @@
+import { ALL_PROVIDER, packId } from '../utils.js';
+
 const registry = new Map();
 
 export function register(name, impl) { registry.set(name, impl); }
 
 function resolve(provider) { return registry.get(provider) ?? null; }
 
-export const getLogs = (provider, page = 0, pageSize = 10) =>
-  resolve(provider)?.getLogs(page, pageSize) ?? Promise.resolve({ data: [], total: 0 });
+const tsOf = (e) => (typeof e.raw?.timestamp === 'string' ? new Date(e.raw.timestamp).getTime() : 0);
+
+export async function getLogs(provider, page = 0, pageSize = 10) {
+  if (provider === ALL_PROVIDER) {
+    const all = [];
+    for (const [id, impl] of registry) {
+      try {
+        const r = await impl.getLogs(0, Number.MAX_SAFE_INTEGER);
+        for (const e of r.data) all.push({ ...e, project: packId(id, e.project) });
+      } catch { /* skip */ }
+    }
+    all.sort((a, b) => tsOf(b) - tsOf(a));
+    return { data: all.slice(page * pageSize, (page + 1) * pageSize), total: all.length };
+  }
+  return resolve(provider)?.getLogs(page, pageSize) ?? Promise.resolve({ data: [], total: 0 });
+}

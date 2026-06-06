@@ -10,7 +10,7 @@ import { MemoryViewer } from './components/MemoryViewer';
 import { PlansViewer } from './components/PlansViewer';
 import { ProjectDiagnostics } from './components/ProjectDiagnostics';
 import { SettingsViewer } from './components/SettingsViewer';
-import { prettifyProjectName, formatRelative, fmt, formatDuration, apiUrl, slugify } from './utils';
+import { prettifyProjectName, formatRelative, fmt, formatDuration, apiUrl, slugify, iconFor } from './utils';
 
 const SESSION_PAGE_SIZE = 20;
 const VALID_VIEWS = ['history', 'logs', 'skills', 'agents', 'mcps', 'memory', 'plans', 'settings'] as const;
@@ -153,10 +153,12 @@ function App() {
         const list: ProviderInfo[] = r.data?.providers ?? [];
         setProviders(list);
         // Resolve the active provider: keep the saved one if it still exists,
-        // otherwise fall back to the first available (or first registered) provider.
+        // otherwise use the backend-declared default (falling back to the first
+        // available, then first registered provider).
         setProvider(prev => {
           if (prev && list.some(p => p.id === prev)) return prev;
-          const chosen = (list.find(p => p.available) ?? list[0])?.id ?? null;
+          const def = r.data?.defaultProvider as string | undefined;
+          const chosen = (def && list.some(p => p.id === def) ? def : (list.find(p => p.available) ?? list[0])?.id) ?? null;
           if (chosen) localStorage.setItem('lens-provider', chosen);
           return chosen;
         });
@@ -371,13 +373,8 @@ function App() {
 
         {!sidebarCollapsed && (
           <div className="p-4 border-b border-lens-border shrink-0">
-            <h1 className="text-xl font-medium tracking-tight text-lens-text">Claude Lens</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs text-lens-text-dim">Local History Explorer</p>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded border shrink-0 ${providerBadgeClass}`}>
-                {activeProviderInfo?.name ?? ''}
-              </span>
-            </div>
+            <h1 className="text-xl font-medium tracking-tight text-lens-text">Lens</h1>
+            <p className="text-xs text-lens-text-dim mt-1">Local History Explorer</p>
           </div>
         )}
 
@@ -542,6 +539,21 @@ function App() {
         )}
         {sidebarCollapsed && <div className="flex-1" />}
 
+        {/* Active provider tag — sits directly above Settings */}
+        {activeProviderInfo && (
+          <div className={`shrink-0 ${sidebarCollapsed ? 'p-1 flex justify-center' : 'px-2 py-2'}`}>
+            {(() => { const Icon = iconFor(activeProviderInfo.icon); return (
+              <span
+                title={activeProviderInfo.name}
+                className={`flex items-center gap-1.5 rounded border ${providerBadgeClass} ${sidebarCollapsed ? 'p-1.5 justify-center' : 'px-2 py-1 text-[11px] w-full'}`}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                {!sidebarCollapsed && <span className="truncate">{activeProviderInfo.name}</span>}
+              </span>
+            ); })()}
+          </div>
+        )}
+
         {/* Settings — above bottom bar, always visible */}
         <div className={`shrink-0 border-t border-lens-border ${sidebarCollapsed ? 'p-1 flex flex-col items-center' : 'p-2'}`}>
           {sidebarCollapsed ? (
@@ -614,7 +626,14 @@ function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sortedProjects.map(proj => (
                   <button key={proj.id} onClick={() => openProject(proj.id)} className="bg-lens-surface border border-lens-border hover:border-lens-border-hi rounded-lg p-6 text-left transition-colors flex flex-col">
-                    <div className="font-medium text-lens-text text-lg mb-2">{prettifyProjectName(proj.id)}</div>
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="font-medium text-lens-text text-lg">{prettifyProjectName(proj.id)}</span>
+                      {proj.provider && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border shrink-0 provider-badge provider-badge-${slugify(proj.provider)}`}>
+                          {providers.find(p => p.id === proj.provider)?.name ?? proj.provider}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-lens-text-dim truncate mb-4" title={proj.fullPath}>{proj.fullPath}</div>
                     <div className="mt-auto flex items-center justify-between text-xs text-lens-text-sub">
                       <span>{proj.sessionCount} Sessions</span>

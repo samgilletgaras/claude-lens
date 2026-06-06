@@ -1,3 +1,12 @@
+import { Sparkles, GitBranch, Boxes, Bot, type LucideIcon } from 'lucide-react';
+
+// Generic icon-name → lucide component map (keyed by icon name, NOT provider id).
+// Providers declare their icon name in /api/config; this resolves it.
+const ICONS: Record<string, LucideIcon> = { Sparkles, GitBranch, Boxes, Bot };
+export function iconFor(name?: string | null): LucideIcon {
+  return (name && ICONS[name]) || Bot;
+}
+
 export function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
@@ -6,7 +15,10 @@ export function fmt(n: number): string {
 
 export function prettifyProjectName(str: string): string {
   if (!str) return 'Unknown Project';
-  const folderName = str.split('/').pop() || str;
+  // Strip an "All Providers" pack prefix (`<provider>:::<id>`) — uniform transform.
+  const sepIdx = str.indexOf(':::');
+  const id = sepIdx === -1 ? str : str.slice(sepIdx + 3);
+  const folderName = id.split('/').pop() || id;
   return folderName.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 

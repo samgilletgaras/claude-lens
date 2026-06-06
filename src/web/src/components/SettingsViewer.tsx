@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
 import type { Provider, ProviderInfo } from '../types';
-import { apiUrl } from '../utils';
+import { apiUrl, iconFor } from '../utils';
 
 const THEMES: { id: 'default' | 'tycho' | 'parchment'; name: string; colors: string[] }[] = [
   { id: 'default',   name: 'Carbon',    colors: ['#1e1e1e', '#3f3f46', '#71717a', '#f59e0b'] },
@@ -62,14 +62,16 @@ export function SettingsViewer({ demoMode, providers, provider, onProviderChange
             <div className="flex gap-2 shrink-0 ml-6 flex-wrap justify-end">
               {providers.map(p => {
                 const disabled = !p.available && !demoMode;
+                const Icon = iconFor(p.icon);
                 return (
                   <button
                     key={p.id}
                     onClick={() => onProviderChange(p.id)}
                     disabled={disabled}
                     title={disabled ? `No ${p.name} data found` : undefined}
-                    className={`px-3 py-1.5 rounded text-xs border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${provider === p.id ? 'border-lens-accent bg-lens-accent/10 text-lens-accent' : 'border-lens-border text-lens-text-sub hover:border-lens-border-hi'}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${provider === p.id ? 'border-lens-accent bg-lens-accent/10 text-lens-accent' : 'border-lens-border text-lens-text-sub hover:border-lens-border-hi'}`}
                   >
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
                     {p.name}
                   </button>
                 );
@@ -133,7 +135,7 @@ export function SettingsViewer({ demoMode, providers, provider, onProviderChange
         </div>
 
         <p className="text-xs text-lens-text-faint mt-6 text-center">
-          Claude Lens · local session history explorer{version ? ` · v${version}` : ''}
+          Lens · local session history explorer{version ? ` · v${version}` : ''}
         </p>
       </div>
     </div>

@@ -14,6 +14,7 @@ export interface ProviderCapabilities {
 export interface ProviderInfo {
   id: string;
   name: string;
+  icon?: string | null; // lucide icon name, resolved via iconFor() in utils
   available: boolean;
   capabilities: ProviderCapabilities;
 }
@@ -53,6 +54,7 @@ export interface ProjectSummary {
   fullPath: string;
   sessionCount: number;
   lastUpdated: number;
+  provider?: string; // source provider id, set only under the "All Providers" view
 }
 
 export interface ConversationSummary {

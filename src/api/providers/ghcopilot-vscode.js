@@ -8,6 +8,7 @@ import '../readers/ghcopilot-vscode/ghcopilot-vscode-skills.js';
 import '../readers/ghcopilot-vscode/ghcopilot-vscode-memory.js';
 
 export const name = 'GitHub Copilot (VS Code)';
+export const icon = 'GitBranch'; // lucide icon name (resolved by name on the frontend)
 export const capabilities = {
   hasHistory: true, hasStats: true, hasLogs: true, hasSkills: true,
   hasAgents: true, hasMcps: true, hasMemory: true, hasPlans: false,
