@@ -5,11 +5,12 @@ import '../readers/ghcopilot-vscode/ghcopilot-vscode-logs.js';
 import '../readers/ghcopilot-vscode/ghcopilot-vscode-mcps.js';
 import '../readers/ghcopilot-vscode/ghcopilot-vscode-agents.js';
 import '../readers/ghcopilot-vscode/ghcopilot-vscode-skills.js';
+import '../readers/ghcopilot-vscode/ghcopilot-vscode-memory.js';
 
 export const name = 'GitHub Copilot (VS Code)';
 export const capabilities = {
   hasHistory: true, hasStats: true, hasLogs: true, hasSkills: true,
-  hasAgents: true, hasMcps: true, hasMemory: false, hasPlans: false,
+  hasAgents: true, hasMcps: true, hasMemory: true, hasPlans: false,
 };
 
 export async function isAvailable() {

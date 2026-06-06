@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Brain, ArrowLeft, Search, ChevronRight } from 'lucide-react';
 import type { MemoryEntry, MemoryEntryDetail } from '../types';
-import { prettifyProjectName } from '../utils';
+import { apiUrl, prettifyProjectName } from '../utils';
 
 type MemoryType = 'user' | 'feedback' | 'project' | 'reference';
 
@@ -95,7 +95,7 @@ export function MemoryViewer({ demoMode }: { demoMode?: boolean }) {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    fetch(demoMode ? '/api/memory?demo=true' : '/api/memory')
+    fetch(apiUrl('/api/memory', !!demoMode))
       .then(res => res.json())
       .then(res => {
         if (res.error) throw new Error(res.error);
@@ -112,7 +112,7 @@ export function MemoryViewer({ demoMode }: { demoMode?: boolean }) {
     setSelected(entry);
     setDetail(null);
     setDetailLoading(true);
-    fetch(`/api/memory?project=${encodeURIComponent(entry.project)}&file=${encodeURIComponent(entry.filename)}${demoMode ? '&demo=true' : ''}`)
+    fetch(apiUrl(`/api/memory?project=${encodeURIComponent(entry.project)}&file=${encodeURIComponent(entry.filename)}`, !!demoMode))
       .then(res => res.json())
       .then(res => {
         setDetail((res.data as MemoryEntryDetail[])?.[0] ?? null);
@@ -184,7 +184,7 @@ export function MemoryViewer({ demoMode }: { demoMode?: boolean }) {
         <div className="text-center">
           <Brain className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p>No memory files found</p>
-          <p className="text-xs mt-1 text-lens-text-faint">Memory files live at ~/.claude/projects/*/memory/</p>
+          <p className="text-xs mt-1 text-lens-text-faint">No saved memory entries for this provider yet</p>
         </div>
       </div>
     );

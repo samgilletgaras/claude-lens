@@ -1,11 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { parseFrontmatter, CACHE_TTL } from '../../utils.js';
+import { getUserDirs } from './ghcopilot-vscode-sessions.js';
 import { register } from '../agents.js';
-
-const USER_PROMPTS_DIR = path.join(os.homedir(), '.config', 'Code', 'User', 'prompts');
-const COPILOT_STORAGE_DIR = path.join(os.homedir(), '.config', 'Code', 'User', 'globalStorage', 'github.copilot-chat');
 
 let _cache = null, _cacheTime = 0;
 
@@ -36,14 +33,19 @@ function scanAll() {
   const agents = [];
   const seen = new Set();
 
-  // User custom agents
-  scanDir(USER_PROMPTS_DIR, agents, seen);
+  // Scan every VS Code variant's User dir (stable + Insiders); `seen` dedups by
+  // slug so an agent present in both variants is listed once (first wins).
+  for (const userDir of getUserDirs()) {
+    // User custom agents
+    scanDir(path.join(userDir, 'prompts'), agents, seen);
 
-  // Built-in Copilot agents (Ask, Explore, Plan, …)
-  let builtinDirs;
-  try { builtinDirs = fs.readdirSync(COPILOT_STORAGE_DIR, { withFileTypes: true }); } catch { builtinDirs = []; }
-  for (const entry of builtinDirs) {
-    if (entry.isDirectory()) scanDir(path.join(COPILOT_STORAGE_DIR, entry.name), agents, seen);
+    // Built-in Copilot agents (Ask, Explore, Plan, …)
+    const storageDir = path.join(userDir, 'globalStorage', 'github.copilot-chat');
+    let builtinDirs;
+    try { builtinDirs = fs.readdirSync(storageDir, { withFileTypes: true }); } catch { builtinDirs = []; }
+    for (const entry of builtinDirs) {
+      if (entry.isDirectory()) scanDir(path.join(storageDir, entry.name), agents, seen);
+    }
   }
 
   return agents.sort((a, b) => a.name.localeCompare(b.name));

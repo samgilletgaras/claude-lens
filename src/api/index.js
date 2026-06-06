@@ -13,7 +13,7 @@ import * as logs from './readers/logs.js';
 import * as mcps from './readers/mcps.js';
 import * as skills from './readers/skills.js';
 import * as agents from './readers/agents.js';
-import { getMemory } from './readers/memory.js';
+import * as memory from './readers/memory.js';
 import { getPlans } from './readers/plans.js';
 
 // To add a new provider: create providers/x.js, import it here, add to PROVIDERS.
@@ -186,7 +186,7 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
-    try { ok({ data: await getMemory(project, filename) }); } catch(e) { err(e.message); }
+    try { ok({ data: await memory.getMemory(providerName, project, filename) }); } catch(e) { err(e.message); }
     return;
   }
 

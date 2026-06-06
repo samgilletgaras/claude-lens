@@ -7,7 +7,10 @@ import { register } from '../sessions.js';
 
 // ─── Workspace discovery ──────────────────────────────────────────────────────
 
-const VSCODE_APP_NAMES = ['Code', 'Code - Insiders', 'VSCodium', 'Cursor', 'Windsurf'];
+// This provider is VS Code only — stable + Insiders. Other editors (Cursor,
+// Windsurf, VSCodium) are deliberately NOT listed here; per the architecture
+// rules they belong to their own provider, not GitHub Copilot for VS Code.
+const VSCODE_APP_NAMES = ['Code', 'Code - Insiders'];
 
 export function getCandidateDirs() {
   const home = os.homedir();
@@ -17,7 +20,6 @@ export function getCandidateDirs() {
     return [
       ...VSCODE_APP_NAMES.map(n => path.join(configBase, n, 'User', 'workspaceStorage')),
       path.join(home, '.vscode-server', 'data', 'User', 'workspaceStorage'),
-      path.join(home, '.cursor-server', 'data', 'User', 'workspaceStorage'),
     ];
   }
   if (platform === 'darwin') {
@@ -29,6 +31,14 @@ export function getCandidateDirs() {
     return VSCODE_APP_NAMES.map(n => path.join(appData, n, 'User', 'workspaceStorage'));
   }
   return [];
+}
+
+// VS Code "User" directories (the parent of each workspaceStorage), deduped.
+// Use this for User-level data that lives outside workspaceStorage —
+// e.g. User/prompts, User/globalStorage, User/mcp.json — so those readers cover
+// every VS Code variant (stable + Insiders) instead of hardcoding one path.
+export function getUserDirs() {
+  return [...new Set(getCandidateDirs().map(d => path.dirname(d)))];
 }
 
 function decodeWorkspaceUri(uri) {

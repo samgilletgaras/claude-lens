@@ -6,6 +6,7 @@ import '../readers/claude/claude-logs.js';
 import '../readers/claude/claude-mcps.js';
 import '../readers/claude/claude-skills.js';
 import '../readers/claude/claude-agents.js';
+import '../readers/claude/claude-memory.js';
 
 export const name = 'Claude';
 export const capabilities = {

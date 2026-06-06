@@ -1,28 +1,37 @@
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { CACHE_TTL } from '../../utils.js';
-import { scanWorkspaces } from './ghcopilot-vscode-sessions.js';
+import { scanWorkspaces, getUserDirs } from './ghcopilot-vscode-sessions.js';
 import { register } from '../mcps.js';
-
-// Global MCP config: ~/.config/Code/User/mcp.json
-const GLOBAL_MCP_PATH = path.join(os.homedir(), '.config', 'Code', 'User', 'mcp.json');
 
 let _cache = null, _cacheTime = 0;
 
+// Global MCP config lives at User/mcp.json in each VS Code variant (stable +
+// Insiders). Merge across variants, deduping by server name (first wins) so the
+// same global server defined in both doesn't produce duplicate ids.
 function readGlobalServers() {
-  let raw;
-  try { raw = JSON.parse(fs.readFileSync(GLOBAL_MCP_PATH, 'utf8')); } catch { return []; }
-  const mcpServers = raw?.servers;
-  if (!mcpServers || typeof mcpServers !== 'object') return [];
-  return Object.entries(mcpServers).map(([name, cfg]) => ({
-    id: `global:${name}`,
-    name,
-    type: 'plugin',
-    config: { command: cfg.command ?? null, args: cfg.args ?? null, url: cfg.url ?? null },
-    source: GLOBAL_MCP_PATH,
-    toolCount: 0, totalCalls: 0, lastUsed: null,
-  }));
+  const servers = [];
+  const seen = new Set();
+  for (const userDir of getUserDirs()) {
+    const mcpPath = path.join(userDir, 'mcp.json');
+    let raw;
+    try { raw = JSON.parse(fs.readFileSync(mcpPath, 'utf8')); } catch { continue; }
+    const mcpServers = raw?.servers;
+    if (!mcpServers || typeof mcpServers !== 'object') continue;
+    for (const [name, cfg] of Object.entries(mcpServers)) {
+      if (typeof cfg !== 'object' || !cfg || seen.has(name)) continue;
+      seen.add(name);
+      servers.push({
+        id: `global:${name}`,
+        name,
+        type: 'plugin',
+        config: { command: cfg.command ?? null, args: cfg.args ?? null, url: cfg.url ?? null },
+        source: mcpPath,
+        toolCount: 0, totalCalls: 0, lastUsed: null,
+      });
+    }
+  }
+  return servers;
 }
 
 function readWorkspaceServers() {
