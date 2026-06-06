@@ -6,7 +6,7 @@
   "scripts": {
     "dev:cli": "npm --workspace=src/cli run dev",
     "dev:web": "npm --workspace=src/web run dev",
-    "dev": "concurrently \"npm run dev:cli\" \"npm run dev:web\""
+    "dev": "concurrently --raw \"npm run dev:cli\" \"npm run dev:web\""
   },
   "workspaces": [
     "src/cli",

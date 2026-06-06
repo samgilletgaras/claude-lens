@@ -30,14 +30,10 @@ It started by reading the JSONL session files from `~/.claude/projects/` and sho
 ## Setup & running
 
 ```bash
-npm install
-npm run dev
+bash start.sh
 ```
 
-This starts two servers:
-
-- **Backend** → http://localhost:3000 (reads `~/.claude/`)
-- **Frontend** → http://localhost:5173 ← open this in your browser
+Then open http://localhost:5173 in your browser.
 
 ```bash
 npm run dev:cli   # backend only
