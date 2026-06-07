@@ -273,7 +273,7 @@ function App() {
 
         {!sidebarCollapsed && (
           <div className="p-4 border-b border-lens-border shrink-0">
-            <h1 className="text-xl font-medium tracking-tight text-lens-text">Lens</h1>
+            <h1 className="text-xl font-medium tracking-tight text-lens-text">AI Lens</h1>
             <p className="text-xs text-lens-text-dim mt-1">Local History Explorer</p>
           </div>
         )}

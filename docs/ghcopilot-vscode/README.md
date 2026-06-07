@@ -1,7 +1,7 @@
 # GitHub Copilot (VS Code) provider
 
 This is the global reference for the **GitHub Copilot for VS Code** provider in
-Lens: where VS Code keeps Copilot's data on disk, how Lens discovers workspaces and
+AI Lens: where VS Code keeps Copilot's data on disk, how AI Lens discovers workspaces and
 sessions, and where each feature the app shows (projects, messages, logs, stats,
 skills, agents, MCPs, memory) comes from.
 

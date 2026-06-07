@@ -135,7 +135,7 @@ export function SettingsViewer({ demoMode, providers, provider, onProviderChange
         </div>
 
         <p className="text-xs text-lens-text-faint mt-6 text-center">
-          Lens · local session history explorer{version ? ` · v${version}` : ''}
+          AI Lens · local session history explorer{version ? ` · v${version}` : ''}
         </p>
       </div>
     </div>

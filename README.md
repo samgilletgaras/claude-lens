@@ -1,4 +1,4 @@
-# Lens
+# AI Lens
 
 A local web app to browse your AI coding-assistant session history — [Claude Code](https://claude.ai/code) and [GitHub Copilot](https://github.com/features/copilot) (in VS Code), side by side.
 

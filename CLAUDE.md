@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## What this is
 
-Lens is a local web app to browse AI coding-assistant session history across
+AI Lens is a local web app to browse AI coding-assistant session history across
 multiple providers (Claude Code, GitHub Copilot, …). It reads each provider's
 session/config files **directly off disk** and renders them as a timeline of
 messages, tool calls, and system events — plus skills, agents, MCPs, memory,

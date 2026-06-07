@@ -1,6 +1,6 @@
 # GitHub Copilot (VS Code) — how chat sessions are stored on disk
 
-This note records what we learned while investigating why Copilot sessions in Lens
+This note records what we learned while investigating why Copilot sessions in AI Lens
 appeared to be **missing their first message(s)**. It documents the two on-disk
 formats, what each one contains, where they disagree, and the reasoning behind how
 the `ghcopilot-vscode` reader sources its data.
@@ -90,7 +90,7 @@ The `response` array is a stream of typed parts:
 
 ## The bug we were chasing: missing first message(s)
 
-**Symptom:** Copilot sessions in Lens looked like the *assistant* spoke first; the
+**Symptom:** Copilot sessions in AI Lens looked like the *assistant* spoke first; the
 user's opening prompt was gone.
 
 **Root cause:** the **transcript never records the opening user prompt.** Every
@@ -139,7 +139,7 @@ slash-command-only turn and "Try Again" retry. Example: one session had 63
   a different shape. It *adds* execution results (exit code, duration) but *drops*
   the model's rationale args.
 
-So for the slice Lens renders today (uniform tool calls), **the transcript is the
+So for the slice AI Lens renders today (uniform tool calls), **the transcript is the
 better tool source**, even though chatSession technically "has tool info."
 
 ---
@@ -154,7 +154,7 @@ chatSessions: 20 files   →  6 sessions exist ONLY as chatSessions
 ```
 
 Because the reader currently **discovers sessions by scanning the transcripts
-folder**, those 6 Copilot conversations are **invisible in Lens**. This is a
+folder**, those 6 Copilot conversations are **invisible in AI Lens**. This is a
 latent data-completeness gap independent of the first-message bug. Not yet
 addressed — flagged here for a future decision.
 

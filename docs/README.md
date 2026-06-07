@@ -1,6 +1,6 @@
-# Lens — documentation index
+# AI Lens — documentation index
 
-**Lens** is a local web app for browsing your AI coding-assistant session history
+**AI Lens** is a local web app for browsing your AI coding-assistant session history
 across multiple providers (Claude Code, GitHub Copilot for VS Code, …). It reads
 each provider's session/config files **directly off disk** and renders them as a
 timeline of messages, tool calls, and system events — plus skills, agents, MCP

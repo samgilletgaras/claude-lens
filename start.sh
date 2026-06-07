@@ -14,7 +14,7 @@ if [ ! -d node_modules ]; then
   npm install
 fi
 
-echo "Starting Claude Lens..."
+echo "Starting AI Lens..."
 echo "  Frontend: http://localhost:5173"
 echo ""
 

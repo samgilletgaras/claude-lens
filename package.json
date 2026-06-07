@@ -1,7 +1,7 @@
 {
-  "name": "claude-lens",
+  "name": "ai-lens",
   "version": "1.2.0",
-  "description": "Claude Lens",
+  "description": "AI Lens",
   "main": "index.js",
   "scripts": {
     "dev:api": "npm --workspace=src/api run dev",

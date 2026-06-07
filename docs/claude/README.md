@@ -1,6 +1,6 @@
 # Claude Code provider
 
-This is the global reference for the **Claude Code** provider in Lens: where Claude
+This is the global reference for the **Claude Code** provider in AI Lens: where Claude
 Code keeps its data on disk, the per-session transcript format, and exactly where
 each feature the app shows (projects, messages, logs, stats, skills, agents, MCPs,
 memory, plans) comes from.
@@ -41,7 +41,7 @@ Path constants (`src/api/utils.js`):
 └── mcp-needs-auth-cache.json               ← MCP auth status (used by mcps reader)
 ```
 
-Lens reads **only** the paths above. Other entries (`backups/`, `cache/`,
+AI Lens reads **only** the paths above. Other entries (`backups/`, `cache/`,
 `history.jsonl`, `shell-snapshots/`, `settings.json`, `.credentials.json`, …) are
 intentionally ignored.
 
@@ -81,7 +81,7 @@ an **envelope** with shared metadata plus a `type`. Observed top-level keys:
 
 The reader handles the message-bearing ones and ignores the rest:
 
-| `type` | Used by Lens? | Meaning |
+| `type` | Used by AI Lens? | Meaning |
 |--------|---------------|---------|
 | `user` | ✅ message + turn count + tokens preview | a user turn (`message.content`: string or content blocks) |
 | `assistant` | ✅ message + tokens + tools + models | an assistant turn (`message.content`: blocks; `message.usage`; `message.model`) |
@@ -104,7 +104,7 @@ The reader handles the message-bearing ones and ignores the rest:
 ### Token usage (`assistant.message.usage`)
 
 Real keys include `input_tokens`, `output_tokens`, `cache_read_input_tokens`,
-`cache_creation_input_tokens` (plus extras like `service_tier`, `speed` that Lens
+`cache_creation_input_tokens` (plus extras like `service_tier`, `speed` that AI Lens
 ignores). Cost is estimated via `MODEL_PRICING` in `utils.js`, keyed by a substring
 match on `message.model` (default `[3, 15]` $/M in/out if unknown).
 

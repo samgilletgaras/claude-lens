@@ -234,7 +234,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Claude Lens CLI backend running on http://127.0.0.1:${PORT}`);
+  console.log(`AI Lens CLI backend running on http://127.0.0.1:${PORT}`);
   // Warm up caches for every available provider on startup
   setImmediate(async () => {
     for (const [id, p] of Object.entries(PROVIDERS)) {
