@@ -3,20 +3,15 @@ import path from 'path';
 import os from 'os';
 import { parseFrontmatter, CACHE_TTL, tildeHome } from '../../utils.js';
 import { register } from '../skills.js';
-import { scanWorkspaces, registerCacheClear } from './ghcopilot-vscode-sessions.js';
 
-// Personal skill roots VS Code Copilot resolves, per the agentskills.io open standard.
+// Global skill roots VS Code Copilot resolves, per the agentskills.io open standard.
 // ~/.claude/skills is intentionally omitted — the Claude provider owns that directory.
-const PERSONAL_SKILL_ROOTS = [
+const GLOBAL_SKILL_ROOTS = [
   path.join(os.homedir(), '.copilot', 'skills'),
   path.join(os.homedir(), '.agents', 'skills'),
 ];
 
-// Subdirectory names VS Code Copilot checks inside each workspace root.
-const WORKSPACE_SKILL_SUBDIRS = ['.github/skills', '.agents/skills', '.claude/skills'];
-
 let _cache = null, _cacheTime = 0;
-registerCacheClear(() => { _cache = null; _cacheTime = 0; });
 
 function readSkillsFromDir(dir, seen) {
   const skills = [];
@@ -54,20 +49,9 @@ async function getSkills() {
 
   const seen = new Set();
   const skills = [];
-
-  // Personal skills (~/.copilot/skills, ~/.agents/skills)
-  for (const root of PERSONAL_SKILL_ROOTS) {
+  for (const root of GLOBAL_SKILL_ROOTS) {
     skills.push(...readSkillsFromDir(root, seen));
   }
-
-  // Workspace skills (.github/skills, .agents/skills, .claude/skills per project)
-  try {
-    for (const [folderPath] of scanWorkspaces()) {
-      for (const sub of WORKSPACE_SKILL_SUBDIRS) {
-        skills.push(...readSkillsFromDir(path.join(folderPath, sub), seen));
-      }
-    }
-  } catch { /* scanWorkspaces unavailable */ }
 
   skills.sort((a, b) => a.slug.localeCompare(b.slug));
   _cache = skills;
@@ -76,19 +60,8 @@ async function getSkills() {
 }
 
 function getSkillDetail(slug) {
-  const allRoots = [...PERSONAL_SKILL_ROOTS];
-
-  try {
-    for (const [folderPath] of scanWorkspaces()) {
-      for (const sub of WORKSPACE_SKILL_SUBDIRS) {
-        allRoots.push(path.join(folderPath, sub));
-      }
-    }
-  } catch { /* ignore */ }
-
-  for (const root of allRoots) {
-    const entryPath = path.join(root, slug);
-    const skillMdPath = path.join(entryPath, 'SKILL.md');
+  for (const root of GLOBAL_SKILL_ROOTS) {
+    const skillMdPath = path.join(root, slug, 'SKILL.md');
     if (!fs.existsSync(skillMdPath)) continue;
     const content = fs.readFileSync(skillMdPath, 'utf8');
     const { meta, body } = parseFrontmatter(content);

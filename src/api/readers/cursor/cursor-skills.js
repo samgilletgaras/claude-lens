@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { CURSOR_SKILLS_DIR, CACHE_TTL, parseFrontmatter, tildeHome } from '../../utils.js';
+import { CURSOR_SKILLS_DIR, AGENTS_SKILLS_DIR, CACHE_TTL, parseFrontmatter, tildeHome } from '../../utils.js';
 import { register } from '../skills.js';
 
 // parseFrontmatter only handles simple key: value pairs.
@@ -13,16 +13,13 @@ function extractBlockDescription(raw) {
 
 let _skillsCache = null, _skillsCacheTs = 0;
 
-async function getSkills() {
-  const now = Date.now();
-  if (_skillsCache && now - _skillsCacheTs < CACHE_TTL) return _skillsCache;
-  if (!fs.existsSync(CURSOR_SKILLS_DIR)) return [];
-
+function readSkillsFromDir(dir) {
+  if (!fs.existsSync(dir)) return [];
   const skills = [];
-  for (const entry of fs.readdirSync(CURSOR_SKILLS_DIR, { withFileTypes: true })) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const slug = entry.name;
-    const skillMdPath = path.join(CURSOR_SKILLS_DIR, slug, 'SKILL.md');
+    const skillMdPath = path.join(dir, slug, 'SKILL.md');
     if (!fs.existsSync(skillMdPath)) continue;
 
     let description = null, trigger = null;
@@ -45,27 +42,34 @@ async function getSkills() {
     } catch { continue; }
 
     const name = slug.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    skills.push({
-      slug,
-      name,
-      description,
-      hasSkillMd: true,
-      trigger,
-      totalCalls: 0,
-      lastUsed: null,
-      sourcePath: tildeHome(skillMdPath),
-    });
+    skills.push({ slug, name, description, hasSkillMd: true, trigger, totalCalls: 0, lastUsed: null, sourcePath: tildeHome(skillMdPath) });
   }
+  return skills;
+}
 
-  skills.sort((a, b) => a.slug.localeCompare(b.slug));
+async function getSkills() {
+  const now = Date.now();
+  if (_skillsCache && now - _skillsCacheTs < CACHE_TTL) return _skillsCache;
+
+  const cursorSkills = readSkillsFromDir(CURSOR_SKILLS_DIR);
+  const cursorSlugs = new Set(cursorSkills.map(s => s.slug));
+
+  // Global agentskills.io skills — skip any slug already covered by cursor-specific dir
+  const globalSkills = readSkillsFromDir(AGENTS_SKILLS_DIR).filter(s => !cursorSlugs.has(s.slug));
+
+  const skills = [...cursorSkills, ...globalSkills].sort((a, b) => a.slug.localeCompare(b.slug));
   _skillsCache = skills;
   _skillsCacheTs = now;
   return skills;
 }
 
 function getSkillDetail(slug) {
-  const skillMdPath = path.join(CURSOR_SKILLS_DIR, slug, 'SKILL.md');
-  if (!fs.existsSync(skillMdPath)) return null;
+  const candidates = [
+    path.join(CURSOR_SKILLS_DIR, slug, 'SKILL.md'),
+    path.join(AGENTS_SKILLS_DIR, slug, 'SKILL.md'),
+  ];
+  const skillMdPath = candidates.find(p => fs.existsSync(p));
+  if (!skillMdPath) return null;
   const name = slug.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   let frontmatter = {}, body = null;
   try {

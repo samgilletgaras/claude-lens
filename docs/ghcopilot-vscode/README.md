@@ -119,8 +119,6 @@ Copilot implements. Two scopes are merged, deduped by slug (first found wins):
 - `~/.copilot/skills/<slug>/SKILL.md` — Copilot-specific personal skills
 - `~/.agents/skills/<slug>/SKILL.md` — open-standard personal skills
 
-`~/.claude/skills/` is deliberately skipped — the Claude provider owns that tree.
-
 **Workspace skills** (per project discovered by `scanWorkspaces()`):
 - `<projectRoot>/.github/skills/<slug>/SKILL.md`
 - `<projectRoot>/.agents/skills/<slug>/SKILL.md`

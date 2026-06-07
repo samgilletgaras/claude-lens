@@ -16,11 +16,14 @@ function formatDate(ts: number | null) {
   return new Date(ts).toLocaleDateString();
 }
 
+type MCPSort = 'recent' | 'usage' | 'az';
+
 export function MCPsViewer({ demoMode, providers = [], provider, showSourcePaths = true }: { demoMode?: boolean; providers?: ProviderInfo[]; provider?: string | null; showSourcePaths?: boolean }) {
   const [servers, setServers] = useState<MCPServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<MCPSort>('recent');
   const [providerFilter, setProviderFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<MCPServer | null>(null);
   const [detail, setDetail] = useState<MCPServerDetail | null>(null);
@@ -178,27 +181,44 @@ export function MCPsViewer({ demoMode, providers = [], provider, showSourcePaths
       )
     : providerFiltered;
 
+  const sorted = [...filtered].sort((a, b) => {
+    if (sort === 'recent') return (b.lastUsed ?? 0) - (a.lastUsed ?? 0);
+    if (sort === 'usage') return b.totalCalls - a.totalCalls || a.name.localeCompare(b.name);
+    return a.name.localeCompare(b.name);
+  });
+
   return (
     <div className="flex-1 overflow-y-auto w-full">
       <div className="p-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-2xl font-semibold flex items-center">
-            <Plug className="mr-3 text-lens-accent" /> MCP Servers
-          </h2>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-lens-text-dim pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search MCPs..."
-              className="bg-lens-surface border border-lens-border focus:border-lens-border-hi rounded-md pl-8 pr-3 py-1.5 text-sm text-lens-text-body placeholder:text-lens-text-faint outline-none transition-colors w-52"
-            />
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold flex items-center">
+              <Plug className="mr-3 text-lens-accent" /> MCP Servers
+            </h2>
+            <p className="text-lens-text-dim text-sm mt-1">
+              {q || providerFilter ? `${filtered.length} of ${servers.length} servers` : `${servers.length} servers discovered`}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-1">
+              {(['recent', 'usage', 'az'] as const).map(s => (
+                <button key={s} onClick={() => setSort(s)} className={`px-2 py-1 text-xs rounded transition-colors ${sort === s ? 'bg-lens-border text-lens-accent' : 'text-lens-text-faint hover:text-lens-text-body'}`}>
+                  {s === 'recent' ? 'Recent' : s === 'usage' ? 'Usage' : 'A–Z'}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-lens-text-dim pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search MCPs..."
+                className="bg-lens-surface border border-lens-border focus:border-lens-border-hi rounded-md pl-8 pr-3 py-1.5 text-sm text-lens-text-body placeholder:text-lens-text-faint outline-none transition-colors w-52"
+              />
+            </div>
           </div>
         </div>
-        <p className="text-lens-text-dim text-sm mb-4">
-          {q ? `${filtered.length} of ${servers.length} servers` : `${servers.length} servers discovered`}
-        </p>
         {isAllMode && (
           <ProviderFilterBar providers={providers} presentIds={presentProviderIds} filter={providerFilter} onChange={setProviderFilter} />
         )}
@@ -206,7 +226,7 @@ export function MCPsViewer({ demoMode, providers = [], provider, showSourcePaths
           <p className="text-lens-text-dim text-sm">No servers match &ldquo;{search}&rdquo;</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map(server => (
+            {sorted.map(server => (
               <button
                 key={server.id}
                 onClick={() => openServer(server)}

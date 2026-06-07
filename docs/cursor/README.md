@@ -6,7 +6,7 @@ Cursor stores its agent session data in `~/.cursor/` as plain JSONL + Markdown f
 
 - **Agent transcripts** — per-project JSONL files under `~/.cursor/projects/`
 - **Plans** — Markdown files under `~/.cursor/plans/`
-- **Skills** — SKILL.md files under `~/.cursor/skills-cursor/`
+- **Skills** — SKILL.md files under `~/.cursor/skills-cursor/` (Cursor-specific) and `~/.agents/skills/` (agentskills.io global standard)
 - **MCPs** — SERVER_METADATA.json files under `~/.cursor/projects/*/mcps/`
 
 ## Directory layout
@@ -28,6 +28,11 @@ Cursor stores its agent session data in `~/.cursor/` as plain JSONL + Markdown f
 │   └── {skill-name}/
 │       └── SKILL.md                         # YAML frontmatter + markdown body
 └── mcp.json                                 # global MCP config (may be empty)
+
+~/.agents/
+└── skills/
+    └── {skill-name}/
+        └── SKILL.md                         # agentskills.io open standard (shared across editors)
 ```
 
 The project **slug** encodes the workspace path: drop the leading `/`, then replace every `/` with `-`.  
@@ -54,7 +59,7 @@ Content blocks follow the Anthropic message shape (`type: "text"`, `type: "tool_
 | Sessions | `agent-transcripts/{uuid}/{uuid}.jsonl` | One file per agent run |
 | Messages | Same JSONL, streamed line by line | No per-message timestamps |
 | Stats | Derived from transcript JSONL | No token counts (not in JSONL) |
-| Skills | `skills-cursor/{name}/SKILL.md` | Supports `>-` YAML block scalars |
+| Skills | `skills-cursor/{name}/SKILL.md` + `~/.agents/skills/{name}/SKILL.md` | Cursor-specific first; global deduped by slug |
 | Plans | `plans/*.plan.md` | YAML frontmatter with `name`, `overview`, `todos` |
 | MCPs | `projects/*/mcps/*/SERVER_METADATA.json` | Also reads `mcp.json` for global config |
 
@@ -80,7 +85,7 @@ For slugs without a matching `workspace.json` entry (e.g. `empty-window`), the r
 | `hasHistory` | ✓ | JSONL transcripts |
 | `hasStats` | ✓ | Derived from transcripts |
 | `hasLogs` | ✗ | No separate raw-log layer |
-| `hasSkills` | ✓ | `skills-cursor/` directory |
+| `hasSkills` | ✓ | `skills-cursor/` + `~/.agents/skills/` |
 | `hasAgents` | ✗ | No separate agents directory |
 | `hasMcps` | ✓ | `SERVER_METADATA.json` files |
 | `hasMemory` | ✗ | No memory system found |

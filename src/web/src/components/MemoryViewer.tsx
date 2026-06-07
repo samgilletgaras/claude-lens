@@ -87,11 +87,14 @@ function ProjectGroups({ entries, onOpen, providers }: { entries: MemoryEntry[];
   );
 }
 
+type MemorySort = 'recent' | 'az';
+
 export function MemoryViewer({ demoMode, providers = [], provider, showSourcePaths = true }: { demoMode?: boolean; providers?: ProviderInfo[]; provider?: string | null; showSourcePaths?: boolean }) {
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<MemorySort>('az');
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [providerFilter, setProviderFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<MemoryEntry | null>(null);
@@ -230,28 +233,40 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
     );
   });
 
+  const sortedEntries = sort === 'az'
+    ? [...filtered].sort((a, b) => a.project.localeCompare(b.project) || a.name.localeCompare(b.name))
+    : filtered;
+
   return (
     <div className="flex-1 overflow-y-auto w-full">
       <div className="p-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-2xl font-semibold flex items-center">
-            <Brain className="mr-3 text-lens-accent" /> Memory
-          </h2>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-lens-text-dim pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search memory…"
-              className="bg-lens-surface border border-lens-border focus:border-lens-border-hi rounded-md pl-8 pr-3 py-1.5 text-sm text-lens-text-body placeholder:text-lens-text-faint outline-none transition-colors w-52"
-            />
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold flex items-center">
+              <Brain className="mr-3 text-lens-accent" /> Memory
+            </h2>
+            <p className="text-lens-text-dim text-sm mt-1">
+              {q || typeFilter || providerFilter ? `${filtered.length} of ${entries.length} entries` : `${entries.length} memory entries`}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-1">
+              <button onClick={() => setSort('az')} className={`px-2 py-1 text-xs rounded transition-colors ${sort === 'az' ? 'bg-lens-border text-lens-accent' : 'text-lens-text-faint hover:text-lens-text-body'}`}>
+                A–Z
+              </button>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-lens-text-dim pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search memory…"
+                className="bg-lens-surface border border-lens-border focus:border-lens-border-hi rounded-md pl-8 pr-3 py-1.5 text-sm text-lens-text-body placeholder:text-lens-text-faint outline-none transition-colors w-52"
+              />
+            </div>
           </div>
         </div>
-
-        <p className="text-lens-text-dim text-sm mb-4">
-          {q || typeFilter || providerFilter ? `${filtered.length} of ${entries.length} entries` : `${entries.length} memory entries`}
-        </p>
 
         {isAllMode && (
           <ProviderFilterBar providers={providers} presentIds={presentProviderIds} filter={providerFilter} onChange={setProviderFilter} />
@@ -292,7 +307,7 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
         {filtered.length === 0 ? (
           <p className="text-lens-text-dim text-sm">No entries match your search.</p>
         ) : (
-          <ProjectGroups entries={filtered} onOpen={openEntry} providers={providers} />
+          <ProjectGroups entries={sortedEntries} onOpen={openEntry} providers={providers} />
         )}
       </div>
     </div>
