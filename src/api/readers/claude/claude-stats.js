@@ -66,7 +66,7 @@ async function globalStats() {
 
   const total = tokInput + tokCacheRead + tokCacheCreation;
   _statsCache = {
-    totals: { sessions, messages, toolCalls },
+    totals: { sessions, messages, toolCalls, projects: Object.keys(projectStats).length },
     tokens: { input: tokInput, output: tokOutput, cacheRead: tokCacheRead, cacheCreation: tokCacheCreation, cacheHitRate: total > 0 ? Math.round((tokCacheRead / total) * 100) : 0 },
     stopReasons, models,
     topTools: Object.entries(toolUsage).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count })),

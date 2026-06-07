@@ -20,7 +20,7 @@ function resolve(provider) {
 function mergeGlobalStats(parts) {
   const acc = {
     totals: { sessions: 0, messages: 0, toolCalls: 0 },
-    tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0 },
+    tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0, inputEstimated: false, outputEstimated: false },
     stopReasons: {}, models: {},
     hooks: { success: 0, failure: 0, avgDurationMs: 0 },
     topProjects: [], activity: {}, estimatedCostUsd: 0, estimatedCostByProvider: {},
@@ -31,8 +31,11 @@ function mergeGlobalStats(parts) {
   for (const { providerId, stats: s } of parts) {
     if (!s) continue;
     acc.totals.sessions += s.totals.sessions; acc.totals.messages += s.totals.messages; acc.totals.toolCalls += s.totals.toolCalls;
+    if (s.totals.projects) acc.totals.projects = (acc.totals.projects ?? 0) + s.totals.projects;
     acc.tokens.input += s.tokens.input; acc.tokens.output += s.tokens.output;
     acc.tokens.cacheRead += s.tokens.cacheRead; acc.tokens.cacheCreation += s.tokens.cacheCreation;
+    if (s.tokens.inputEstimated) { acc.tokens.inputEstimated = true; (acc.tokens.inputEstimatedProviders ??= []).push(providerId); }
+    if (s.tokens.outputEstimated) { acc.tokens.outputEstimated = true; (acc.tokens.outputEstimatedProviders ??= []).push(providerId); }
     addMap(acc.stopReasons, s.stopReasons); addMap(acc.activity, s.activity);
     for (const [k, v] of Object.entries(s.models ?? {})) { const key = `${providerId}/${k}`; acc.models[key] = (acc.models[key] || 0) + v; }
     acc.hooks.success += s.hooks.success; acc.hooks.failure += s.hooks.failure;

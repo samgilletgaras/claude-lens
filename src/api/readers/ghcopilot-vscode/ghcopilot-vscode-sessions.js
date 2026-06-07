@@ -169,6 +169,7 @@ export async function readChatRequests(transcriptPath, sessionId) {
     text: typeof r?.message?.text === 'string' ? r.message.text : '',
     timestamp: typeof r?.timestamp === 'number' ? r.timestamp : 0,
     modelId: typeof r?.modelId === 'string' ? r.modelId : null,
+    completionTokens: typeof r?.completionTokens === 'number' ? r.completionTokens : 0,
   }));
 }
 

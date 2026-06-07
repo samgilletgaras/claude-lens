@@ -19,7 +19,7 @@ async function globalStats() {
   };
   if (!fs.existsSync(CURSOR_PROJECTS_DIR)) return empty;
 
-  let sessions = 0, messages = 0, toolCalls = 0;
+  let sessions = 0, messages = 0, toolCalls = 0, inputChars = 0, outputChars = 0;
   const toolCounts = {}, activityByDay = {}, projectStats = {};
 
   for (const projEntry of fs.readdirSync(CURSOR_PROJECTS_DIR, { withFileTypes: true })) {
@@ -52,12 +52,18 @@ async function globalStats() {
           if (block?.type === 'tool_use' && typeof block.name === 'string') {
             toolCalls++;
             toolCounts[block.name] = (toolCounts[block.name] || 0) + 1;
+          } else if (block?.type === 'text' && typeof block.text === 'string') {
+            if (msg.role === 'user') inputChars += block.text.length;
+            else outputChars += block.text.length;
           }
         }
       }
     }
     if (projMessages > 0) projectStats[proj] = projMessages;
   }
+
+  const inputTokens = Math.round(inputChars / 4);
+  const outputTokens = Math.round(outputChars / 4);
 
   const topTools = Object.entries(toolCounts)
     .sort((a, b) => b[1] - a[1])
@@ -70,8 +76,8 @@ async function globalStats() {
     .map(([id, messageCount]) => ({ id, messageCount, tokenCount: 0 }));
 
   _statsCache = {
-    totals: { sessions, messages, toolCalls },
-    tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0 },
+    totals: { sessions, messages, toolCalls, projects: Object.keys(projectStats).length },
+    tokens: { input: inputTokens, output: outputTokens, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0, inputEstimated: true, outputEstimated: true },
     stopReasons: {}, models: {},
     hooks: { success: 0, failure: 0, avgDurationMs: 0 },
     topTools,
@@ -87,7 +93,7 @@ async function projectStats(project) {
   const transcriptsDir = path.join(CURSOR_PROJECTS_DIR, project, 'agent-transcripts');
   if (!fs.existsSync(transcriptsDir)) return null;
 
-  let sessions = 0, messages = 0, toolCalls = 0;
+  let sessions = 0, messages = 0, toolCalls = 0, inputChars = 0, outputChars = 0;
   const toolCounts = {}, activityByDay = {};
 
   for (const uuidEntry of fs.readdirSync(transcriptsDir, { withFileTypes: true })) {
@@ -112,6 +118,9 @@ async function projectStats(project) {
         if (block?.type === 'tool_use' && typeof block.name === 'string') {
           toolCalls++;
           toolCounts[block.name] = (toolCounts[block.name] || 0) + 1;
+        } else if (block?.type === 'text' && typeof block.text === 'string') {
+          if (msg.role === 'user') inputChars += block.text.length;
+          else outputChars += block.text.length;
         }
       }
     }
@@ -122,9 +131,12 @@ async function projectStats(project) {
     .slice(0, 10)
     .map(([name, count]) => ({ name, count }));
 
+  const inputTokens = Math.round(inputChars / 4);
+  const outputTokens = Math.round(outputChars / 4);
+
   return {
     totals: { sessions, messages, toolCalls },
-    tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0 },
+    tokens: { input: inputTokens, output: outputTokens, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0, inputEstimated: true, outputEstimated: true },
     stopReasons: {}, models: {},
     hooks: { success: 0, failure: 0, avgDurationMs: 0 },
     topTools,

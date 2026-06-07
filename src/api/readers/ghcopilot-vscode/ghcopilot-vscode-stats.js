@@ -14,7 +14,7 @@ async function getStats(project = null) {
   const workspaces = scanWorkspaces();
   const targets = project ? (workspaces.has(project) ? [project] : []) : [...workspaces.keys()];
 
-  let sessions = 0, messages = 0, toolCalls = 0;
+  let sessions = 0, messages = 0, toolCalls = 0, outputTokens = 0, inputChars = 0;
   const activity = {}, topToolsMap = new Map(), projectMsgCounts = {}, modelsMap = new Map();
 
   for (const proj of targets) {
@@ -38,6 +38,8 @@ async function getStats(project = null) {
         const reqs = await readChatRequests(fileInfo.filePath, sessionId);
         if (reqs) {
           for (const r of reqs) {
+            outputTokens += r.completionTokens;
+            if (r.text) inputChars += r.text.length;
             if (!r.modelId) continue;
             const name = r.modelId.startsWith('copilot/') ? r.modelId.slice(8) : r.modelId;
             modelsMap.set(name, (modelsMap.get(name) ?? 0) + 1);
@@ -48,14 +50,16 @@ async function getStats(project = null) {
     if (!project) projectMsgCounts[proj] = (projectMsgCounts[proj] ?? 0) + projMessages;
   }
 
+  const inputTokens = Math.round(inputChars / 4);
+
   const topProjects = project ? [] : Object.entries(projectMsgCounts)
     .map(([id, messageCount]) => ({ id, messageCount, tokenCount: 0 }))
     .sort((a, b) => b.messageCount - a.messageCount)
     .slice(0, 10);
 
   const data = {
-    totals: { sessions, messages, toolCalls },
-    tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0 },
+    totals: { sessions, messages, toolCalls, projects: project ? undefined : Object.keys(projectMsgCounts).length },
+    tokens: { input: inputTokens, output: outputTokens, cacheRead: 0, cacheCreation: 0, cacheHitRate: 0, inputEstimated: true },
     models: Object.fromEntries(modelsMap), topTools: [...topToolsMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count })),
     activity, hooks: { success: 0, failure: 0, avgDurationMs: 0 }, estimatedCostUsd: 0,
     stopReasons: {}, topProjects,

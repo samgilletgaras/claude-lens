@@ -8,12 +8,15 @@ import { LoadingSpinner } from './LoadingSpinner';
 
 const usd = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({ label, value, sub, footnote }: { label: string; value: string; sub?: string; footnote?: string }) {
   return (
-    <div className="bg-lens-surface border border-lens-border rounded-lg p-4">
-      <div className="text-[10px] uppercase tracking-wider text-lens-text-dim mb-1">{label}</div>
+    <div className="bg-lens-surface border border-lens-border rounded-lg p-4 flex flex-col">
+      <div className="text-[10px] uppercase tracking-wider text-lens-text-dim mb-1">
+        {label}{footnote && <span className="text-lens-text-faint normal-case not-italic ml-0.5">*</span>}
+      </div>
       <div className="text-2xl font-semibold text-lens-text tabular-nums">{value}</div>
-      {sub && <div className="text-xs text-lens-text-dim mt-1">{sub}</div>}
+      {sub && <div className="text-xs text-lens-text-dim mt-auto pt-3">{sub}</div>}
+      {footnote && <div className="text-[10px] text-lens-text-faint mt-auto pt-3">*{footnote}</div>}
     </div>
   );
 }
@@ -90,6 +93,14 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
 
   const totalTokens = stats.tokens.input + stats.tokens.output;
   const hasTokens = totalTokens > 0;
+  const inputEstimated = stats.tokens.inputEstimated === true;
+  const outputEstimated = stats.tokens.outputEstimated === true;
+  const providerLabel = (id: string) => providers.find(p => p.id === id)?.name ?? id;
+  const estimationNote = (providerIds?: string[]) => {
+    if (providerIds && providerIds.length > 0)
+      return `~4 chars/token approximation used for ${providerIds.map(providerLabel).join(', ')}`;
+    return '~4 chars/token approximation';
+  };
   const stopReasons = stats.stopReasons ?? {};
   const sortedStopReasons = Object.entries(stopReasons).sort((a, b) => b[1] - a[1]);
   const maxStopReason = Math.max(...sortedStopReasons.map(([, v]) => v), 1);
@@ -133,12 +144,12 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
 
         {/* Summary cards — token cards only when data exists */}
         <div className={`grid gap-4 mb-6 ${hasTokens ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'}`}>
-          <StatCard label="Sessions" value={stats.totals.sessions.toLocaleString()} />
-          <StatCard label="Messages" value={fmt(stats.totals.messages)} />
+          <StatCard label="Sessions" value={stats.totals.sessions.toLocaleString()} sub={stats.totals.projects ? `across ${stats.totals.projects} project${stats.totals.projects !== 1 ? 's' : ''}` : undefined} />
+          <StatCard label="Messages" value={fmt(stats.totals.messages)} sub={stats.totals.sessions > 0 ? `avg ${Math.round(stats.totals.messages / stats.totals.sessions)} per session` : undefined} />
           {hasTokens ? (
             <>
-              <StatCard label="Total Tokens" value={fmt(totalTokens)} sub={`${fmt(stats.totals.toolCalls)} tool calls`} />
-              <StatCard label="Cache Hit Rate" value={`${stats.tokens.cacheHitRate}%`} sub={`${fmt(stats.tokens.cacheRead)} tokens from cache`} />
+              <StatCard label="Input Tokens" value={fmt(stats.tokens.input)} footnote={inputEstimated ? estimationNote(stats.tokens.inputEstimatedProviders) : undefined} />
+              <StatCard label="Output Tokens" value={fmt(stats.tokens.output)} footnote={outputEstimated ? estimationNote(stats.tokens.outputEstimatedProviders) : undefined} />
             </>
           ) : (
             <StatCard label="Tool Calls" value={fmt(stats.totals.toolCalls)} />

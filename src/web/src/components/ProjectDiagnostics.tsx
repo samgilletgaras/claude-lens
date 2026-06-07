@@ -5,12 +5,15 @@ import { fmt, apiUrl, prettifyProjectName } from '../utils';
 import { ActivityHeatmap } from './ActivityHeatmap';
 import { LoadingSpinner } from './LoadingSpinner';
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({ label, value, sub, footnote }: { label: string; value: string; sub?: string; footnote?: string }) {
   return (
-    <div className="bg-lens-surface border border-lens-border rounded-lg p-4">
-      <div className="text-[10px] uppercase tracking-wider text-lens-text-dim mb-1">{label}</div>
+    <div className="bg-lens-surface border border-lens-border rounded-lg p-4 flex flex-col">
+      <div className="text-[10px] uppercase tracking-wider text-lens-text-dim mb-1">
+        {label}{footnote && <span className="text-lens-text-faint normal-case not-italic ml-0.5">*</span>}
+      </div>
       <div className="text-2xl font-semibold text-lens-text tabular-nums">{value}</div>
-      {sub && <div className="text-xs text-lens-text-dim mt-1">{sub}</div>}
+      {sub && <div className="text-xs text-lens-text-dim mt-auto pt-3">{sub}</div>}
+      {footnote && <div className="text-[10px] text-lens-text-faint mt-auto pt-3">*{footnote}</div>}
     </div>
   );
 }
@@ -83,6 +86,9 @@ export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string;
 
   const totalTokens = stats.tokens.input + stats.tokens.output;
   const hasTokenData = totalTokens > 0;
+  const inputEstimated = stats.tokens.inputEstimated === true;
+  const outputEstimated = stats.tokens.outputEstimated === true;
+  const anyEstimated = inputEstimated || outputEstimated;
   const topTools = stats.topTools ?? [];
   const maxTool = Math.max(...topTools.map(t => t.count), 1);
   const sortedModels = Object.entries(stats.models).sort((a, b) => b[1] - a[1]);
@@ -109,8 +115,14 @@ export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string;
           <div className="bg-lens-surface border border-lens-border rounded-lg p-4 mb-6">
             <div className="text-[10px] uppercase tracking-wider text-lens-text-dim mb-2">Tokens</div>
             <div className="flex items-center gap-6 text-sm flex-wrap">
-              <span><span className="text-lens-text tabular-nums font-medium">{fmt(stats.tokens.input)}</span> <span className="text-lens-text-dim">input</span></span>
-              <span><span className="text-lens-text tabular-nums font-medium">{fmt(stats.tokens.output)}</span> <span className="text-lens-text-dim">output</span></span>
+              <span>
+                <span className="text-lens-text tabular-nums font-medium">{fmt(stats.tokens.input)}</span>
+                {' '}<span className="text-lens-text-dim">input{inputEstimated && <span className="text-lens-text-faint">*</span>}</span>
+              </span>
+              <span>
+                <span className="text-lens-text tabular-nums font-medium">{fmt(stats.tokens.output)}</span>
+                {' '}<span className="text-lens-text-dim">output{outputEstimated && <span className="text-lens-text-faint">*</span>}</span>
+              </span>
               {stats.tokens.cacheRead > 0 && (
                 <span><span className="text-sky-400 tabular-nums font-medium">{fmt(stats.tokens.cacheRead)}</span> <span className="text-lens-text-dim">cached</span></span>
               )}
@@ -118,15 +130,20 @@ export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string;
                 <span className="text-lens-text-faint">{stats.tokens.cacheHitRate}% cache hit rate</span>
               )}
             </div>
+            {anyEstimated && (
+              <div className="text-[10px] text-lens-text-faint mt-2">
+                *estimated · ~4 chars/token
+              </div>
+            )}
           </div>
         )}
 
         {/* Summary cards */}
-        <div className={`grid gap-4 mb-6 ${hasTokenData ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'}`}>
+        <div className={`grid gap-4 mb-6 ${hasTokenData && stats.estimatedCostUsd > 0 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-3'}`}>
           <StatCard label="Sessions" value={stats.totals.sessions.toLocaleString()} />
           <StatCard label="Messages" value={fmt(stats.totals.messages)} />
           <StatCard label="Tool Calls" value={fmt(stats.totals.toolCalls)} />
-          {hasTokenData && (
+          {hasTokenData && stats.estimatedCostUsd > 0 && (
             <StatCard
               label="Est. Cost"
               value={`$${stats.estimatedCostUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}

@@ -160,9 +160,21 @@ export interface PlanDetail extends Plan {
   body: string;
 }
 
+export interface TokenStats {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreation: number;
+  cacheHitRate: number;
+  inputEstimated?: boolean;
+  outputEstimated?: boolean;
+  inputEstimatedProviders?: string[];
+  outputEstimatedProviders?: string[];
+}
+
 export interface ProjectStats {
-  totals: { sessions: number; messages: number; toolCalls: number };
-  tokens: { input: number; output: number; cacheRead: number; cacheCreation: number; cacheHitRate: number };
+  totals: { sessions: number; messages: number; toolCalls: number; projects?: number };
+  tokens: TokenStats;
   models: Record<string, number>;
   topTools: { name: string; count: number }[];
   activity: Record<string, number>;
@@ -171,8 +183,8 @@ export interface ProjectStats {
 }
 
 export interface DiagnosticsStats {
-  totals: { sessions: number; messages: number; toolCalls: number };
-  tokens: { input: number; output: number; cacheRead: number; cacheCreation: number; cacheHitRate: number };
+  totals: { sessions: number; messages: number; toolCalls: number; projects?: number };
+  tokens: TokenStats;
   stopReasons: Record<string, number>;
   models: Record<string, number>;
   hooks: { success: number; failure: number; avgDurationMs: number };
