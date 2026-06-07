@@ -25,8 +25,22 @@ const PROVIDERS = {
 // Default provider when the request omits ?provider= — first registered one.
 const DEFAULT_PROVIDER = Object.keys(PROVIDERS)[0];
 
+// CORS allowlist: only the localhost Vite UI origins may read responses.
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]);
+
 const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Local-only tool serving private session history: never allow arbitrary
+  // origins to read responses. The Vite dev proxy talks to us server-side
+  // (not subject to CORS), so this only gates direct browser cross-origin
+  // requests — restrict to the localhost UI origins.
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
