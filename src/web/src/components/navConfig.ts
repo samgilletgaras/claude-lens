@@ -15,13 +15,13 @@ import { PlansViewer } from './PlansViewer';
 export type NavItem = { view: AppView; icon: LucideIcon; label: string; cap: keyof ProviderCapabilities | null };
 
 export const NAV_ITEMS: NavItem[] = [
-  { view: 'history', icon: MessageSquare, label: 'Chat History', cap: null },
-  { view: 'logs', icon: Activity, label: 'Diagnostics', cap: 'hasLogs' },
-  { view: 'skills', icon: Layers, label: 'Skills', cap: 'hasSkills' },
-  { view: 'agents', icon: Bot, label: 'Agents', cap: 'hasAgents' },
-  { view: 'mcps', icon: Plug, label: 'MCPs', cap: 'hasMcps' },
+  { view: 'logs', icon: Activity, label: 'Diagnostics', cap: null },
+  { view: 'history', icon: MessageSquare, label: 'Sessions', cap: null },
   { view: 'memory', icon: Brain, label: 'Memory', cap: 'hasMemory' },
   { view: 'plans', icon: ClipboardList, label: 'Plans', cap: 'hasPlans' },
+  { view: 'agents', icon: Bot, label: 'Agents', cap: 'hasAgents' },
+  { view: 'skills', icon: Layers, label: 'Skills', cap: 'hasSkills' },
+  { view: 'mcps', icon: Plug, label: 'MCPs', cap: 'hasMcps' },
 ];
 
 // Views that are a single self-fetching component sharing the same props.

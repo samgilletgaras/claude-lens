@@ -11,7 +11,7 @@ export const NO_CAPABILITIES: ProviderCapabilities = {
 
 export function parseHash(hash: string): { view: AppView; projectId: string | null; sessionId: string | null } {
   const parts = hash.replace(/^#\/?/, '').split('/');
-  const view = (VALID_VIEWS.includes(parts[0] as AppView) ? parts[0] : 'history') as AppView;
+  const view = (VALID_VIEWS.includes(parts[0] as AppView) ? parts[0] : 'logs') as AppView;
   const projectId = view === 'history' ? (parts[1] || null) : null;
   const sessionId = projectId ? (parts[2] || null) : null;
   return { view, projectId, sessionId };

@@ -23,7 +23,7 @@ function App() {
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('history');
+  const [currentView, setCurrentView] = useState<AppView>('logs');
   const [sessionSort, setSessionSort] = useState<'newest' | 'oldest'>('newest');
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -205,10 +205,10 @@ function App() {
     setLoadedKey(null);
     const caps = providers.find(x => x.id === p)?.capabilities;
     const viewCapMap: Partial<Record<AppView, keyof ProviderCapabilities>> = {
-      logs: 'hasLogs', skills: 'hasSkills', agents: 'hasAgents', mcps: 'hasMcps', memory: 'hasMemory', plans: 'hasPlans',
+      skills: 'hasSkills', agents: 'hasAgents', mcps: 'hasMcps', memory: 'hasMemory', plans: 'hasPlans',
     };
     const capKey = viewCapMap[currentView as AppView];
-    if (capKey && caps && !caps[capKey]) setCurrentView('history');
+    if (capKey && caps && !caps[capKey]) setCurrentView('logs');
     refresh();
   }
 
@@ -282,8 +282,10 @@ function App() {
 
         {!sidebarCollapsed && (
           <div className="p-4 border-b border-lens-border shrink-0">
-            <h1 className="text-xl font-medium tracking-tight text-lens-text">AI Lens</h1>
-            <p className="text-xs text-lens-text-dim mt-1">Local History Explorer</p>
+            <button onClick={() => { setCurrentView('logs'); closeProject(); }} className="text-left cursor-pointer group">
+              <h1 className="text-xl font-medium tracking-tight text-lens-text group-hover:text-lens-accent transition-colors">AI Lens</h1>
+              <p className="text-xs text-lens-text-dim mt-1">Local History Explorer</p>
+            </button>
           </div>
         )}
 

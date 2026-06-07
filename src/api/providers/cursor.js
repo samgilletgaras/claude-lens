@@ -9,7 +9,7 @@ import '../readers/cursor/cursor-plans.js';
 export const name = 'Cursor';
 export const icon = 'MousePointer2';
 export const capabilities = {
-  hasHistory: true, hasStats: true, hasLogs: false,
+  hasHistory: true, hasStats: true, hasLogs: true,
   hasSkills: true, hasAgents: false, hasMcps: true,
   hasMemory: false, hasPlans: true,
 };
