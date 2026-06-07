@@ -94,6 +94,41 @@ export async function streamJsonl(filePath, onLine) {
   });
 }
 
+// ─── chatSessions (VS Code native chat store) ─────────────────────────────────
+
+// Copilot's transcripts/*.jsonl does NOT record the opening user prompt — every
+// session begins session.start → assistant.message, and the first turn's prompt
+// (plus the occasional slash-command / "Try Again" turn) is simply absent. The
+// complete, ordered list of user prompts lives in VS Code's sibling
+// chatSessions/<sessionId>.jsonl (same session UUID, agent.extensionId
+// "GitHub.copilot-chat"). We only ever open the chatSessions file whose id
+// matches a transcript we already found, so this stays scoped to this provider's
+// own (VS Code Copilot) data — not another editor.
+function chatSessionPathFor(transcriptPath, sessionId) {
+  // transcriptPath = <hash>/GitHub.copilot-chat/transcripts/<id>.jsonl
+  return path.join(path.dirname(transcriptPath), '..', '..', 'chatSessions', `${sessionId}.jsonl`);
+}
+
+// The file is an append-only "observable diff" log: a kind:0 base snapshot, then
+// kind:2 array-appends to ["requests"], and kind:1 path patches we ignore. We
+// only need each request's prompt text + timestamp, so we accumulate the base's
+// requests then every appended batch, in order.
+async function readChatRequests(transcriptPath, sessionId) {
+  const chatPath = chatSessionPathFor(transcriptPath, sessionId);
+  if (!fs.existsSync(chatPath)) return null;
+  const requests = [];
+  try {
+    await streamJsonl(chatPath, ev => {
+      if (ev.kind === 0 && Array.isArray(ev.v?.requests)) requests.push(...ev.v.requests);
+      else if (ev.kind === 2 && Array.isArray(ev.k) && ev.k.length === 1 && ev.k[0] === 'requests' && Array.isArray(ev.v)) requests.push(...ev.v);
+    });
+  } catch { return null; }
+  return requests.map(r => ({
+    text: typeof r?.message?.text === 'string' ? r.message.text : '',
+    timestamp: typeof r?.timestamp === 'number' ? r.timestamp : 0,
+  }));
+}
+
 // ─── Session parsing ──────────────────────────────────────────────────────────
 
 async function summariseFile(filePath, sessionId, project) {
@@ -112,6 +147,14 @@ async function summariseFile(filePath, sessionId, project) {
       if (!preview && content && typeof content === 'string') preview = content.slice(0, 150);
     }
   });
+  // Prefer chatSessions for the prompt count + preview: it includes the opening
+  // prompt the transcript drops, so the count and preview reflect the real first message.
+  const reqs = await readChatRequests(filePath, sessionId);
+  if (reqs && reqs.length) {
+    turnCount = reqs.length;
+    const first = reqs.find(r => r.text.trim());
+    if (first) preview = first.text.slice(0, 150);
+  }
   return { id: sessionId, project, firstMessageTs: firstTs ?? 0, lastUpdated: lastTs ?? firstTs ?? 0, preview, turnCount, metadata };
 }
 
@@ -175,12 +218,33 @@ async function getMessages(project, session) {
   const info = scanWorkspaces().get(project);
   const fileInfo = info?.files.get(session);
   if (!fileInfo) return [];
-  const messages = [];
+
+  // Assistant turns (with tool calls) come from the transcript.
+  const assistantMsgs = [];
   await streamJsonl(fileInfo.filePath, event => {
-    const ts = event.timestamp ? new Date(event.timestamp).getTime() : 0;
-    if (event.type === 'user.message') { const content = event.data?.content; if (content) messages.push({ role: 'user', content, timestamp: ts }); }
-    else if (event.type === 'assistant.message') { const msg = normaliseAssistant(event); if (msg) messages.push(msg); }
+    if (event.type === 'assistant.message') { const msg = normaliseAssistant(event); if (msg) assistantMsgs.push(msg); }
   });
+
+  // User turns come from chatSessions when available — it's a superset that
+  // includes the opening prompt the transcript omits. Fall back to the
+  // transcript's user.message events if the chatSessions file is missing.
+  const reqs = await readChatRequests(fileInfo.filePath, session);
+  let userMsgs;
+  if (reqs) {
+    userMsgs = reqs.filter(r => r.text).map(r => ({ role: 'user', content: r.text, timestamp: r.timestamp }));
+  } else {
+    userMsgs = [];
+    await streamJsonl(fileInfo.filePath, event => {
+      if (event.type === 'user.message') {
+        const content = event.data?.content;
+        if (content) userMsgs.push({ role: 'user', content, timestamp: event.timestamp ? new Date(event.timestamp).getTime() : 0 });
+      }
+    });
+  }
+
+  // Merge chronologically; on a tie the user prompt precedes its assistant turn.
+  const messages = [...userMsgs, ...assistantMsgs].sort((a, b) =>
+    (a.timestamp - b.timestamp) || ((a.role === 'user' ? 0 : 1) - (b.role === 'user' ? 0 : 1)));
   _messagesCache.set(key, { data: messages, time: now });
   return messages;
 }
