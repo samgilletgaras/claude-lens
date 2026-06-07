@@ -4,6 +4,10 @@ import os from 'os';
 export const PORT = process.env.PORT || 3000;
 export const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 
+let _serverSettings = { includeVscodeInsiders: true };
+export function getServerSettings() { return _serverSettings; }
+export function updateServerSettings(patch) { _serverSettings = { ..._serverSettings, ...patch }; }
+
 export const CURSOR_DATA_DIR     = path.join(os.homedir(), '.cursor');
 export const CURSOR_PROJECTS_DIR = path.join(CURSOR_DATA_DIR, 'projects');
 export const CURSOR_PLANS_DIR    = path.join(CURSOR_DATA_DIR, 'plans');

@@ -161,7 +161,7 @@ export function LogsViewer({ demoMode, providers = [], provider }: { demoMode?: 
                   </div>
                 ))}
                 {hasZeroCostProvider && (
-                  <p className="text-[10px] text-lens-text-faint pt-1">* provider exposes no public token pricing</p>
+                  <p className="text-[10px] text-lens-text-faint pt-1">* cost unknown: token pricing for this provider is not yet tracked</p>
                 )}
               </div>
             )}

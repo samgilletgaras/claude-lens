@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { parseFrontmatter, CACHE_TTL, isTmp, tildeHome } from '../../utils.js';
-import { getCandidateDirs, getUserDirs } from './ghcopilot-vscode-sessions.js';
+import { getCandidateDirs, getUserDirs, registerCacheClear } from './ghcopilot-vscode-sessions.js';
 import { register } from '../memory.js';
 
 const _memoryCache = new Map();
+registerCacheClear(() => _memoryCache.clear());
 
 // VS Code's Copilot Chat "memory tool" persists plain-markdown memories under
 // <ext>/memory-tool/memories. There are two scopes:

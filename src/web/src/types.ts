@@ -17,6 +17,7 @@ export interface ProviderInfo {
   icon?: string | null; // lucide icon name, resolved via iconFor() in utils
   available: boolean;
   capabilities: ProviderCapabilities;
+  vscodeInsidersDetected?: boolean;
 }
 
 export interface Block {

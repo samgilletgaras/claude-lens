@@ -6,6 +6,8 @@ A local web app to browse your AI coding-assistant session history — [Claude C
 
 It started by reading the JSONL session files from `~/.claude/projects/` and showing them as a timeline. It now spans multiple providers and surfaces skills, agents, MCPs, memory files, plans, and per-project stats — with an **All Providers** view (the default) that merges everything detected on your machine. Fully local and read-only — nothing is sent anywhere.
 
+> **Work in progress:** GitHub Copilot (VS Code) and Cursor provider support is still being developed — some session history, stats, or metadata may be incomplete or missing.
+
 ---
 
 ## What's inside
@@ -28,7 +30,8 @@ Each view shows only what the active provider supports, and a small icon + badge
 Switch providers in **Settings**, or stay on **All Providers** (the default) to see everything at once:
 
 - **Claude Code** — reads `~/.claude/`
-- **GitHub Copilot (VS Code)** — reads VS Code's workspace & global storage (stable + Insiders)
+- **GitHub Copilot (VS Code)** *(work in progress)* — reads VS Code's workspace & global storage (stable + Insiders)
+- **Cursor** *(work in progress)* — reads `~/.cursor/` agent transcripts, plans, skills, and MCPs
 
 ---
 

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import readline from 'readline';
-import { CACHE_TTL, isTmp, tildeHome } from '../../utils.js';
+import { CACHE_TTL, isTmp, tildeHome, getServerSettings } from '../../utils.js';
 import { register } from '../sessions.js';
 
 // ─── Workspace discovery ──────────────────────────────────────────────────────
@@ -10,21 +10,39 @@ import { register } from '../sessions.js';
 // This provider is VS Code only — stable + Insiders. Other editors (Cursor,
 // Windsurf, VSCodium) are deliberately NOT listed here; per the architecture
 // rules they belong to their own provider, not GitHub Copilot for VS Code.
-const VSCODE_APP_NAMES = ['Code', 'Code - Insiders'];
-
-export function getCandidateDirs() {
+export function isInsidersPresent() {
   const home = os.homedir();
   const platform = os.platform();
   if (platform === 'linux') {
     const configBase = process.env.XDG_CONFIG_HOME || path.join(home, '.config');
+    return fs.existsSync(path.join(configBase, 'Code - Insiders', 'User'));
+  }
+  if (platform === 'darwin') {
+    return fs.existsSync(path.join(home, 'Library', 'Application Support', 'Code - Insiders', 'User'));
+  }
+  return false;
+}
+
+function getVscodeAppNames() {
+  const names = ['Code'];
+  if (getServerSettings().includeVscodeInsiders) names.push('Code - Insiders');
+  return names;
+}
+
+export function getCandidateDirs() {
+  const home = os.homedir();
+  const platform = os.platform();
+  const names = getVscodeAppNames();
+  if (platform === 'linux') {
+    const configBase = process.env.XDG_CONFIG_HOME || path.join(home, '.config');
     return [
-      ...VSCODE_APP_NAMES.map(n => path.join(configBase, n, 'User', 'workspaceStorage')),
+      ...names.map(n => path.join(configBase, n, 'User', 'workspaceStorage')),
       path.join(home, '.vscode-server', 'data', 'User', 'workspaceStorage'),
     ];
   }
   if (platform === 'darwin') {
     const appSupport = path.join(home, 'Library', 'Application Support');
-    return VSCODE_APP_NAMES.map(n => path.join(appSupport, n, 'User', 'workspaceStorage'));
+    return names.map(n => path.join(appSupport, n, 'User', 'workspaceStorage'));
   }
   // Windows is intentionally out of scope (see CLAUDE.md data-sourcing rules).
   return [];
@@ -40,6 +58,15 @@ export function getUserDirs() {
 
 function decodeWorkspaceUri(uri) {
   try { return new URL(uri).pathname; } catch { return null; }
+}
+
+const _extraCacheClears = [];
+export function registerCacheClear(fn) { _extraCacheClears.push(fn); }
+export function clearAllCaches() {
+  _scanCache = null; _scanCacheTime = 0;
+  _projectsCache = null; _projectsCacheTime = 0;
+  _sessionsCache.clear(); _messagesCache.clear();
+  for (const fn of _extraCacheClears) fn();
 }
 
 let _scanCache = null, _scanCacheTime = 0;

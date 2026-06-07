@@ -48,6 +48,7 @@ function App() {
   });
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [showSourcePaths, setShowSourcePaths] = useState<boolean>(() => localStorage.getItem('lens-show-source-paths') === 'true');
+  const [includeVscodeInsiders, setIncludeVscodeInsiders] = useState<boolean>(() => localStorage.getItem('lens-vscode-insiders') !== 'false');
 
   const skipHashRead = useRef(false);
   const activeProjectIdRef = useRef<string | null>(null);
@@ -184,6 +185,13 @@ function App() {
   function handleDemoToggle(v: boolean) {
     setDemoMode(v);
     localStorage.setItem('lens-demo-mode', String(v));
+    refresh();
+  }
+
+  function handleIncludeVscodeInsidersChange(v: boolean) {
+    setIncludeVscodeInsiders(v);
+    localStorage.setItem('lens-vscode-insiders', String(v));
+    fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ includeVscodeInsiders: v }) }).catch(() => {});
     refresh();
   }
 
@@ -437,7 +445,7 @@ function App() {
           </div>
         )}
         {currentView === 'settings' ? (
-          <SettingsViewer demoMode={demoMode} providers={providers} provider={provider} onProviderChange={handleProviderChange} onToggle={handleDemoToggle} theme={theme} onThemeChange={handleThemeChange} showSourcePaths={showSourcePaths} onShowSourcePathsChange={v => { setShowSourcePaths(v); localStorage.setItem('lens-show-source-paths', String(v)); }} />
+          <SettingsViewer demoMode={demoMode} providers={providers} provider={provider} onProviderChange={handleProviderChange} onToggle={handleDemoToggle} theme={theme} onThemeChange={handleThemeChange} showSourcePaths={showSourcePaths} onShowSourcePathsChange={v => { setShowSourcePaths(v); localStorage.setItem('lens-show-source-paths', String(v)); }} includeVscodeInsiders={includeVscodeInsiders} onIncludeVscodeInsidersChange={handleIncludeVscodeInsidersChange} />
         ) : SimpleView ? (
           <SimpleView key={refreshKey} demoMode={demoMode} providers={providers} provider={provider} showSourcePaths={showSourcePaths} />
         ) : activeProjectId === null ? (

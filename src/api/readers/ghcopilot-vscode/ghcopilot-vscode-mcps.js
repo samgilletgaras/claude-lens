@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { CACHE_TTL } from '../../utils.js';
-import { scanWorkspaces, getUserDirs } from './ghcopilot-vscode-sessions.js';
+import { scanWorkspaces, getUserDirs, registerCacheClear } from './ghcopilot-vscode-sessions.js';
 import { register } from '../mcps.js';
 
 let _cache = null, _cacheTime = 0;
+registerCacheClear(() => { _cache = null; _cacheTime = 0; });
 
 // Global MCP config lives at User/mcp.json in each VS Code variant (stable +
 // Insiders). Merge across variants, deduping by server name (first wins) so the

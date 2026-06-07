@@ -9,6 +9,9 @@ const THEMES: { id: 'default' | 'tycho' | 'parchment'; name: string; colors: str
   { id: 'parchment', name: 'Parchment', colors: ['#f5f0e8', '#ddd4be', '#8b7050', '#b83c1a'] },
 ];
 
+// Providers that are still in active development — data may be incomplete.
+const IN_PROGRESS_PROVIDER_IDS = ['ghcopilot-vscode', 'cursor'];
+
 interface Props {
   demoMode: boolean;
   providers: ProviderInfo[];
@@ -19,9 +22,11 @@ interface Props {
   onThemeChange: (t: 'default' | 'tycho' | 'parchment') => void;
   showSourcePaths: boolean;
   onShowSourcePathsChange: (v: boolean) => void;
+  includeVscodeInsiders: boolean;
+  onIncludeVscodeInsidersChange: (v: boolean) => void;
 }
 
-export function SettingsViewer({ demoMode, providers, provider, onProviderChange, onToggle, theme, onThemeChange, showSourcePaths, onShowSourcePathsChange }: Props) {
+export function SettingsViewer({ demoMode, providers, provider, onProviderChange, onToggle, theme, onThemeChange, showSourcePaths, onShowSourcePathsChange, includeVscodeInsiders, onIncludeVscodeInsidersChange }: Props) {
   const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,6 +85,38 @@ export function SettingsViewer({ demoMode, providers, provider, onProviderChange
               })}
             </div>
           </div>
+
+          {providers.some(p => IN_PROGRESS_PROVIDER_IDS.includes(p.id)) && (
+            <div className="px-4 pb-4 -mt-1">
+              <p className="text-[11px] text-lens-text-faint">
+                ⚠ {providers.filter(p => IN_PROGRESS_PROVIDER_IDS.includes(p.id)).map(p => p.name).join(' and ')} {providers.filter(p => IN_PROGRESS_PROVIDER_IDS.includes(p.id)).length === 1 ? 'is' : 'are'} work-in-progress — some history, stats, or metadata may be incomplete or missing.
+              </p>
+            </div>
+          )}
+
+          {providers.some(p => p.id === 'ghcopilot-vscode' && p.vscodeInsidersDetected) && (
+            <>
+              <div className="border-t border-lens-border" />
+              <div className="flex items-center justify-between px-4 py-4">
+                <div>
+                  <div className="text-sm font-medium text-lens-text">Include VS Code Insiders data</div>
+                  <div className="text-xs text-lens-text-dim mt-0.5">
+                    Also read sessions and config from the VS Code Insiders installation. Disable if you only use stable VS Code or want to exclude Insiders data.
+                  </div>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={includeVscodeInsiders}
+                  onClick={() => onIncludeVscodeInsidersChange(!includeVscodeInsiders)}
+                  className={`relative shrink-0 ml-6 w-10 h-6 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-lens-accent ${includeVscodeInsiders ? 'bg-lens-accent' : 'bg-lens-border'}`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${includeVscodeInsiders ? 'translate-x-4' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="bg-lens-surface border border-lens-border rounded-lg overflow-hidden">

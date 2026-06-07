@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import { parseFrontmatter, CACHE_TTL, tildeHome } from '../../utils.js';
 import { register } from '../skills.js';
-import { scanWorkspaces } from './ghcopilot-vscode-sessions.js';
+import { scanWorkspaces, registerCacheClear } from './ghcopilot-vscode-sessions.js';
 
 // Personal skill roots VS Code Copilot resolves, per the agentskills.io open standard.
 // ~/.claude/skills is intentionally omitted — the Claude provider owns that directory.
@@ -16,6 +16,7 @@ const PERSONAL_SKILL_ROOTS = [
 const WORKSPACE_SKILL_SUBDIRS = ['.github/skills', '.agents/skills', '.claude/skills'];
 
 let _cache = null, _cacheTime = 0;
+registerCacheClear(() => { _cache = null; _cacheTime = 0; });
 
 function readSkillsFromDir(dir, seen) {
   const skills = [];

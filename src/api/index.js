@@ -1,5 +1,6 @@
 import http from 'http';
-import { PORT, parseQuery, ALL_PROVIDER } from './utils.js';
+import { PORT, parseQuery, ALL_PROVIDER, updateServerSettings } from './utils.js';
+import { clearAllCaches as clearGhCopilotCaches } from './readers/ghcopilot-vscode/ghcopilot-vscode-sessions.js';
 import { config } from './config.js';
 import * as demo from './demo-data.js';
 
@@ -58,6 +59,19 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ data: null, error: msg }));
   };
 
+  if (req.method === 'POST' && q.pathname === '/api/settings') {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => {
+      let patch = {};
+      try { patch = JSON.parse(Buffer.concat(chunks).toString()); } catch { /* ignore malformed body */ }
+      updateServerSettings(patch);
+      clearGhCopilotCaches();
+      ok({ data: null });
+    });
+    return;
+  }
+
   if (req.method !== 'GET') {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ data: null, error: 'Not Found' }));
@@ -74,7 +88,8 @@ const server = http.createServer(async (req, res) => {
   if (q.pathname === '/api/config') {
     const providers = [];
     for (const [id, p] of Object.entries(PROVIDERS)) {
-      providers.push({ id, name: p.name, icon: p.icon ?? null, capabilities: p.capabilities, available: await p.isAvailable() });
+      const extras = p.extras ? await p.extras() : {};
+      providers.push({ id, name: p.name, icon: p.icon ?? null, capabilities: p.capabilities, available: await p.isAvailable(), ...extras });
     }
     // Synthesize the "All Providers" meta-provider: union of every provider's
     // capabilities, available if any provider is. Listed first and the default.

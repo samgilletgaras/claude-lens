@@ -1,8 +1,9 @@
 import { CACHE_TTL, makeBoundedLogCollector } from '../../utils.js';
-import { scanWorkspaces, streamJsonl } from './ghcopilot-vscode-sessions.js';
+import { scanWorkspaces, streamJsonl, registerCacheClear } from './ghcopilot-vscode-sessions.js';
 import { register } from '../logs.js';
 
 let _cache = null, _cacheTime = 0;
+registerCacheClear(() => { _cache = null; _cacheTime = 0; });
 
 export async function getLogs(page = 0, pageSize = 10) {
   const now = Date.now();

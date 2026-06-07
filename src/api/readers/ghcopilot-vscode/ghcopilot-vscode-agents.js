@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { parseFrontmatter, CACHE_TTL, tildeHome } from '../../utils.js';
-import { getUserDirs } from './ghcopilot-vscode-sessions.js';
+import { getUserDirs, registerCacheClear } from './ghcopilot-vscode-sessions.js';
 import { register } from '../agents.js';
 
 let _cache = null, _cacheTime = 0;
+registerCacheClear(() => { _cache = null; _cacheTime = 0; });
 
 function slugify(name) {
   return name.replace(/[^a-z0-9._-]/gi, '-').toLowerCase();

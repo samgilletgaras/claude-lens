@@ -92,7 +92,7 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<MemoryType | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [providerFilter, setProviderFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<MemoryEntry | null>(null);
   const [detail, setDetail] = useState<MemoryEntryDetail | null>(null);
@@ -210,9 +210,17 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
     : [];
 
   const q = search.toLowerCase().trim();
-  const filtered = entries.filter(e => {
-    if (typeFilter && e.type !== typeFilter) return false;
-    if (providerFilter && !e.providers?.includes(providerFilter)) return false;
+  const providerFiltered = providerFilter ? entries.filter(e => e.providers?.includes(providerFilter)) : entries;
+
+  const typeCounts = ALL_TYPES.reduce<Record<string, number>>((acc, t) => {
+    acc[t] = providerFiltered.filter(e => e.type === t).length;
+    return acc;
+  }, {});
+  const untypedCount = providerFiltered.filter(e => !e.type || !ALL_TYPES.includes(e.type as MemoryType)).length;
+
+  const filtered = providerFiltered.filter(e => {
+    if (typeFilter === '__none__' && e.type && ALL_TYPES.includes(e.type as MemoryType)) return false;
+    if (typeFilter && typeFilter !== '__none__' && e.type !== typeFilter) return false;
     if (!q) return true;
     return (
       e.name.toLowerCase().includes(q) ||
@@ -221,11 +229,6 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
       prettifyProjectName(e.project).toLowerCase().includes(q)
     );
   });
-
-  const typeCounts = ALL_TYPES.reduce<Record<string, number>>((acc, t) => {
-    acc[t] = entries.filter(e => e.type === t).length;
-    return acc;
-  }, {});
 
   return (
     <div className="flex-1 overflow-y-auto w-full">
@@ -246,34 +249,44 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
           </div>
         </div>
 
-        {/* Type filter chips */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <button
-            onClick={() => setTypeFilter(null)}
-            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${typeFilter === null ? 'bg-lens-accent text-lens-deep font-medium' : 'bg-lens-border text-lens-text-sub hover:text-lens-text'}`}
-          >
-            All ({entries.length})
-          </button>
-          {ALL_TYPES.filter(t => typeCounts[t] > 0).map(t => {
-            const c = TYPE_COLORS[t];
-            const active = typeFilter === t;
-            return (
-              <button
-                key={t}
-                onClick={() => setTypeFilter(active ? null : t)}
-                className={`px-2.5 py-1 rounded-full text-xs border transition-colors capitalize ${active ? `${c.bg} ${c.text} ${c.border} font-medium` : 'bg-lens-border border-transparent text-lens-text-sub hover:text-lens-text'}`}
-              >
-                {t} ({typeCounts[t]})
-              </button>
-            );
-          })}
-        </div>
-
         <p className="text-lens-text-dim text-sm mb-4">
           {q || typeFilter || providerFilter ? `${filtered.length} of ${entries.length} entries` : `${entries.length} memory entries`}
         </p>
+
         {isAllMode && (
           <ProviderFilterBar providers={providers} presentIds={presentProviderIds} filter={providerFilter} onChange={setProviderFilter} />
+        )}
+
+        {ALL_TYPES.some(t => typeCounts[t] > 0) && (
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <button
+              onClick={() => setTypeFilter(null)}
+              className={`px-2.5 py-1 rounded-full text-xs transition-colors ${typeFilter === null ? 'bg-lens-accent text-lens-deep font-medium' : 'bg-lens-border text-lens-text-sub hover:text-lens-text'}`}
+            >
+              All ({entries.length})
+            </button>
+            {ALL_TYPES.filter(t => typeCounts[t] > 0).map(t => {
+              const c = TYPE_COLORS[t];
+              const active = typeFilter === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setTypeFilter(active ? null : t)}
+                  className={`px-2.5 py-1 rounded-full text-xs border transition-colors capitalize ${active ? `${c.bg} ${c.text} ${c.border} font-medium` : 'bg-lens-border border-transparent text-lens-text-sub hover:text-lens-text'}`}
+                >
+                  {t} ({typeCounts[t]})
+                </button>
+              );
+            })}
+            {untypedCount > 0 && (
+              <button
+                onClick={() => setTypeFilter(typeFilter === '__none__' ? null : '__none__')}
+                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${typeFilter === '__none__' ? 'bg-lens-border text-lens-text font-medium border-lens-border-hi' : 'bg-lens-border border-transparent text-lens-text-sub hover:text-lens-text'}`}
+              >
+                No type ({untypedCount})
+              </button>
+            )}
+          </div>
         )}
 
         {filtered.length === 0 ? (

@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { getCandidateDirs } from '../readers/ghcopilot-vscode/ghcopilot-vscode-sessions.js';
+import { getCandidateDirs, isInsidersPresent } from '../readers/ghcopilot-vscode/ghcopilot-vscode-sessions.js';
 import '../readers/ghcopilot-vscode/ghcopilot-vscode-stats.js';
 import '../readers/ghcopilot-vscode/ghcopilot-vscode-logs.js';
 import '../readers/ghcopilot-vscode/ghcopilot-vscode-mcps.js';
@@ -28,4 +28,8 @@ export async function isAvailable() {
     }
   }
   return false;
+}
+
+export function extras() {
+  return { vscodeInsidersDetected: isInsidersPresent() };
 }

@@ -1,8 +1,9 @@
 import { CACHE_TTL } from '../../utils.js';
 import { register } from '../stats.js';
-import { scanWorkspaces, streamJsonl, readChatRequests } from './ghcopilot-vscode-sessions.js';
+import { scanWorkspaces, streamJsonl, readChatRequests, registerCacheClear } from './ghcopilot-vscode-sessions.js';
 
 const _statsCache = new Map();
+registerCacheClear(() => _statsCache.clear());
 
 async function getStats(project = null) {
   const key = project ?? '__global__';
