@@ -71,7 +71,7 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
         setLoading(false);
       });
     return () => { ignore = true; };
-  }, [demoMode]);
+  }, [demoMode, provider]);
 
   if (loading) {
     return (

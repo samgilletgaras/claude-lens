@@ -48,6 +48,34 @@ function slugToPath(slug, slugMap) {
   return '/' + slug.replace(/-/g, '/');
 }
 
+// ─── Timestamp parsing ────────────────────────────────────────────────────────
+
+const _MONTHS = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+
+// Parse a <timestamp> tag from raw Cursor message text into epoch milliseconds.
+// Format: "Sunday, Jun 7, 2026, 9:46 PM (UTC+2)"
+// The shown time is the user's local time; we account for the UTC offset so
+// the returned value is true UTC epoch ms.  Returns null if unparseable.
+function parseTimestampMs(text) {
+  const tagM = text.match(/<timestamp>([\s\S]*?)<\/timestamp>/);
+  if (!tagM) return null;
+  const ts = tagM[1].trim();
+  const dtM = ts.match(/(\w{3})\s+(\d{1,2}),\s+(\d{4}),\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
+  if (!dtM) return null;
+  const month = _MONTHS[dtM[1]];
+  if (month === undefined) return null;
+  let hours = parseInt(dtM[4], 10);
+  const mins = parseInt(dtM[5], 10);
+  if (dtM[6].toUpperCase() === 'PM' && hours !== 12) hours += 12;
+  if (dtM[6].toUpperCase() === 'AM' && hours === 12) hours = 0;
+  const tzM = ts.match(/\(UTC([+-])(\d{1,2})(?::(\d{2}))?\)/);
+  const tzOffsetMin = tzM
+    ? (tzM[1] === '+' ? 1 : -1) * (parseInt(tzM[2], 10) * 60 + parseInt(tzM[3] ?? '0', 10))
+    : 0;
+  const localMs = Date.UTC(parseInt(dtM[3], 10), month, parseInt(dtM[2], 10), hours, mins, 0);
+  return localMs - tzOffsetMin * 60 * 1000;
+}
+
 // ─── Transcript scanning ──────────────────────────────────────────────────────
 
 // Returns the text of the first user message, stripped of Cursor-injected XML
@@ -171,10 +199,10 @@ async function getSessions(project, page = 0, pageSize = 20) {
 
     let stat;
     try { stat = fs.statSync(jsonlPath); } catch { continue; }
-    const lastUpdated = stat.mtimeMs;
+    const mtime = stat.mtimeMs;
 
-    // Stream through file to get preview and turn count without loading all into memory
-    let preview = null, turnCount = 0;
+    // Stream through file to get preview, turn count, and actual timestamps.
+    let preview = null, turnCount = 0, firstTs = null, lastTs = null;
     try {
       const rl = readline.createInterface({ input: fs.createReadStream(jsonlPath), crlfDelay: Infinity });
       for await (const line of rl) {
@@ -183,13 +211,15 @@ async function getSessions(project, page = 0, pageSize = 20) {
         try { msg = JSON.parse(line); } catch { continue; }
         if (msg.role === 'user') {
           turnCount++;
-          if (!preview) {
-            const content = msg.message?.content;
-            if (Array.isArray(content)) {
-              for (const block of content) {
-                if (block?.type === 'text' && block.text) {
-                  preview = extractPreview(block.text);
-                  if (preview) break;
+          const content = msg.message?.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block?.type === 'text' && block.text) {
+                if (!preview) preview = extractPreview(block.text);
+                const ts = parseTimestampMs(block.text);
+                if (ts !== null) {
+                  if (firstTs === null) firstTs = ts;
+                  lastTs = ts;
                 }
               }
             }
@@ -201,8 +231,8 @@ async function getSessions(project, page = 0, pageSize = 20) {
     sessions.push({
       id: sessionId,
       project,
-      lastUpdated,
-      firstMessageTs: lastUpdated,
+      lastUpdated: lastTs ?? mtime,
+      firstMessageTs: firstTs ?? mtime,
       preview,
       turnCount,
       tokens: null,

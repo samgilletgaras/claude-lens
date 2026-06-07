@@ -58,7 +58,7 @@ Example: `/home/sam/Projects/tamagotchi` → `home-sam-Projects-tamagotchi`.
 
 ## Session JSONL format
 
-Each line is one message (no timestamps):
+Each line is one message. Per-message timestamps are embedded as `<timestamp>` XML in user text blocks (not as a top-level JSONL field):
 
 ```json
 {"role":"user","message":{"content":[{"type":"text","text":"<timestamp>…</timestamp>\n<user_query>\nHello\n</user_query>"}]}}
@@ -67,15 +67,16 @@ Each line is one message (no timestamps):
 
 Only two `role` values exist: `user` and `assistant`. Content blocks follow the Anthropic message shape (`type: "text"`, `type: "tool_use"`).
 
-**Cursor-injected XML wrappers** appear in every user message. The reader strips them before the data reaches the API:
+**Cursor-injected XML wrappers** appear in every user message. The reader processes them as follows:
 
 | Tag | Handling |
 |-----|----------|
 | `<user_query>` | inner text extracted as the canonical user message |
 | `<system_reminder>` | extracted and emitted as a separate `{ role: 'system' }` event before the user turn |
-| `<timestamp>`, `<user_info>`, `<attached_files>`, `<git_status>`, … | stripped entirely |
+| `<timestamp>` | parsed into epoch ms for `firstMessageTs` / `lastUpdated` / activity heatmap; then stripped from the displayed text |
+| `<user_info>`, `<attached_files>`, `<git_status>`, … | stripped entirely |
 
-**Timestamps are not stored** in the JSONL. The provider uses the file's `mtime` as the session timestamp.
+**`<timestamp>` format:** `Sunday, Jun 7, 2026, 9:46 PM (UTC+2)` — the user's local time with UTC offset. The reader converts this to UTC epoch ms by applying the offset. If no `<timestamp>` is found the file `mtime` is used as a fallback.
 
 ## Timeline richness
 
@@ -94,8 +95,8 @@ This is a data-availability constraint, not a reader limitation. The resulting t
 |---------|--------|-------|
 | Projects | `~/.cursor/projects/` directory listing | Slugs decoded via workspaceStorage cross-reference |
 | Sessions | `agent-transcripts/{uuid}/{uuid}.jsonl` | One file per agent run |
-| Messages | Same JSONL, streamed line by line | Flattened to normalized event contract; XML wrappers stripped; no per-message timestamps |
-| Stats | Derived from transcript JSONL | No token counts (not in JSONL) |
+| Messages | Same JSONL, streamed line by line | Flattened to normalized event contract; XML wrappers stripped |
+| Stats | Derived from transcript JSONL | Activity heatmap uses last `<timestamp>` per session (mtime fallback); no token counts (not in JSONL) |
 | Skills | `skills-cursor/{name}/SKILL.md` + `~/.agents/skills/{name}/SKILL.md` | Cursor-specific first; global deduped by slug |
 | Agents | `~/.claude/agents/*.md` + `plugins/{cache,local}/**/agents/*.md` | Global Claude agents + plugin-bundled agents |
 | Plans | `plans/*.plan.md` | YAML frontmatter with `name`, `overview`, `todos` |

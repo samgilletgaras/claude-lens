@@ -4,6 +4,20 @@ import readline from 'readline';
 import { CURSOR_PROJECTS_DIR, CACHE_TTL, isTmp } from '../../utils.js';
 import { register } from '../stats.js';
 
+const MONTH_IDX = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+
+// Extract the date portion from a Cursor <timestamp> value, expressed in the
+// user's local timezone as written (e.g. "Sunday, Jun 7, 2026, 9:46 PM (UTC+2)").
+// Returns "YYYY-MM-DD" in that local date, or null if unparseable.
+function timestampToDay(text) {
+  const m = text.match(/<timestamp>([\s\S]*?)<\/timestamp>/);
+  if (!m) return null;
+  const dm = m[1].match(/(\w{3})\s+(\d{1,2}),\s+(\d{4})/);
+  if (!dm || !(dm[1] in MONTH_IDX)) return null;
+  return new Date(Date.UTC(parseInt(dm[3], 10), MONTH_IDX[dm[1]], parseInt(dm[2], 10)))
+    .toISOString().slice(0, 10);
+}
+
 let _statsCache = null, _statsCacheTs = 0;
 
 async function globalStats() {
@@ -36,8 +50,7 @@ async function globalStats() {
       sessions++;
 
       const mtime = fs.statSync(jsonlPath).mtimeMs;
-      const day = new Date(mtime).toISOString().slice(0, 10);
-      activityByDay[day] = (activityByDay[day] || 0) + 1;
+      let sessionLastDay = null;
 
       const rl = readline.createInterface({ input: fs.createReadStream(jsonlPath), crlfDelay: Infinity });
       for await (const line of rl) {
@@ -53,11 +66,19 @@ async function globalStats() {
             toolCalls++;
             toolCounts[block.name] = (toolCounts[block.name] || 0) + 1;
           } else if (block?.type === 'text' && typeof block.text === 'string') {
-            if (msg.role === 'user') inputChars += block.text.length;
-            else outputChars += block.text.length;
+            if (msg.role === 'user') {
+              inputChars += block.text.length;
+              const day = timestampToDay(block.text);
+              if (day) sessionLastDay = day;
+            } else {
+              outputChars += block.text.length;
+            }
           }
         }
       }
+
+      const day = sessionLastDay ?? new Date(mtime).toISOString().slice(0, 10);
+      activityByDay[day] = (activityByDay[day] || 0) + 1;
     }
     if (projMessages > 0) projectStats[proj] = projMessages;
   }
@@ -103,8 +124,7 @@ async function projectStats(project) {
     sessions++;
 
     const mtime = fs.statSync(jsonlPath).mtimeMs;
-    const day = new Date(mtime).toISOString().slice(0, 10);
-    activityByDay[day] = (activityByDay[day] || 0) + 1;
+    let sessionLastDay = null;
 
     const rl = readline.createInterface({ input: fs.createReadStream(jsonlPath), crlfDelay: Infinity });
     for await (const line of rl) {
@@ -119,11 +139,19 @@ async function projectStats(project) {
           toolCalls++;
           toolCounts[block.name] = (toolCounts[block.name] || 0) + 1;
         } else if (block?.type === 'text' && typeof block.text === 'string') {
-          if (msg.role === 'user') inputChars += block.text.length;
-          else outputChars += block.text.length;
+          if (msg.role === 'user') {
+            inputChars += block.text.length;
+            const day = timestampToDay(block.text);
+            if (day) sessionLastDay = day;
+          } else {
+            outputChars += block.text.length;
+          }
         }
       }
     }
+
+    const day = sessionLastDay ?? new Date(mtime).toISOString().slice(0, 10);
+    activityByDay[day] = (activityByDay[day] || 0) + 1;
   }
 
   const topTools = Object.entries(toolCounts)

@@ -30,7 +30,7 @@ export function ActivityHeatmap({ activity }: { activity: Record<string, number>
       if (day > anchor) {
         week.push(null);
       } else {
-        const dateStr = day.toISOString().slice(0, 10);
+        const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
         week.push({ date: dateStr, count: activity[dateStr] || 0 });
       }
     }
