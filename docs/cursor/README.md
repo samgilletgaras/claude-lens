@@ -7,6 +7,7 @@ Cursor stores its agent session data in `~/.cursor/` as plain JSONL + Markdown f
 - **Agent transcripts** — per-project JSONL files under `~/.cursor/projects/`
 - **Plans** — Markdown files under `~/.cursor/plans/`
 - **Skills** — SKILL.md files under `~/.cursor/skills-cursor/` (Cursor-specific) and `~/.agents/skills/` (agentskills.io global standard)
+- **Agents** — `~/.claude/agents/*.md` (Claude global agents) + `~/.cursor/plugins/{cache,local}/{source}/{plugin-id}/{version}/agents/*.md` (plugin-bundled agents)
 - **MCPs** — SERVER_METADATA.json files under `~/.cursor/projects/*/mcps/`
 
 ## Directory layout
@@ -33,6 +34,23 @@ Cursor stores its agent session data in `~/.cursor/` as plain JSONL + Markdown f
 └── skills/
     └── {skill-name}/
         └── SKILL.md                         # agentskills.io open standard (shared across editors)
+
+~/.claude/
+└── agents/
+    └── {agent-name}.md                      # Claude global agents — visible to Cursor too
+
+~/.cursor/plugins/
+├── cache/
+│   └── {source}/                            # e.g. cursor-public
+│       └── {plugin-id}/
+│           └── {version-hash}/
+│               ├── agents/
+│               │   └── {name}.md            # plugin-bundled agents
+│               ├── skills/
+│               ├── commands/
+│               └── .claude-plugin/
+│                   └── plugin.json          # {name, description, author}
+└── local/                                   # locally installed plugins (same layout)
 ```
 
 The project **slug** encodes the workspace path: drop the leading `/`, then replace every `/` with `-`.  
@@ -60,6 +78,7 @@ Content blocks follow the Anthropic message shape (`type: "text"`, `type: "tool_
 | Messages | Same JSONL, streamed line by line | No per-message timestamps |
 | Stats | Derived from transcript JSONL | No token counts (not in JSONL) |
 | Skills | `skills-cursor/{name}/SKILL.md` + `~/.agents/skills/{name}/SKILL.md` | Cursor-specific first; global deduped by slug |
+| Agents | `~/.claude/agents/*.md` + `plugins/{cache,local}/**/agents/*.md` | Global Claude agents + plugin-bundled agents |
 | Plans | `plans/*.plan.md` | YAML frontmatter with `name`, `overview`, `todos` |
 | MCPs | `projects/*/mcps/*/SERVER_METADATA.json` | Also reads `mcp.json` for global config |
 
@@ -86,7 +105,7 @@ For slugs without a matching `workspace.json` entry (e.g. `empty-window`), the r
 | `hasStats` | ✓ | Derived from transcripts |
 | `hasLogs` | ✗ | No separate raw-log layer |
 | `hasSkills` | ✓ | `skills-cursor/` + `~/.agents/skills/` |
-| `hasAgents` | ✗ | No separate agents directory |
+| `hasAgents` | ✓ | `~/.claude/agents/` + `~/.cursor/plugins/` plugin agents |
 | `hasMcps` | ✓ | `SERVER_METADATA.json` files |
 | `hasMemory` | ✗ | No memory system found |
 | `hasPlans` | ✓ | `plans/` directory |

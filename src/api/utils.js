@@ -12,6 +12,7 @@ export const CURSOR_DATA_DIR     = path.join(os.homedir(), '.cursor');
 export const CURSOR_PROJECTS_DIR = path.join(CURSOR_DATA_DIR, 'projects');
 export const CURSOR_PLANS_DIR    = path.join(CURSOR_DATA_DIR, 'plans');
 export const CURSOR_SKILLS_DIR   = path.join(CURSOR_DATA_DIR, 'skills-cursor');
+export const CURSOR_PLUGINS_DIR  = path.join(CURSOR_DATA_DIR, 'plugins');
 export const AGENTS_SKILLS_DIR   = path.join(os.homedir(), '.agents', 'skills');
 
 export function getCursorAppDirs() {
