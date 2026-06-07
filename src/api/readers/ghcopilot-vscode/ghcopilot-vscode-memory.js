@@ -14,6 +14,9 @@ const _memoryCache = new Map();
 const EXT_DIR_NAMES = ['GitHub.copilot-chat', 'github.copilot-chat'];
 const MEMORY_SUBPATH = ['memory-tool', 'memories'];
 const GLOBAL_PROJECT = 'Copilot Global';
+// The Plan agent writes its plans into this same memory tree as plan*.md; those are
+// surfaced under Plans (ghcopilot-vscode-plans.js), so skip them here to avoid overlap.
+const PLAN_FILE = /^plan.*\.md$/i;
 
 function decodeWorkspaceUri(uri) {
   try { return new URL(uri).pathname; } catch { return null; }
@@ -29,7 +32,7 @@ function walkMd(root, rel = '') {
   for (const e of entries) {
     const childRel = rel ? `${rel}/${e.name}` : e.name;
     if (e.isDirectory()) out.push(...walkMd(root, childRel));
-    else if (e.isFile() && e.name.endsWith('.md')) out.push({ rel: childRel, full: path.join(root, childRel) });
+    else if (e.isFile() && e.name.endsWith('.md') && !PLAN_FILE.test(e.name)) out.push({ rel: childRel, full: path.join(root, childRel) });
   }
   return out;
 }

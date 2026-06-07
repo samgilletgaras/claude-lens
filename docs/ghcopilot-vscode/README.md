@@ -129,11 +129,19 @@ VS Code Copilot Chat's "memory tool" markdown, two scopes: **global** under
 `workspaceStorage/<hash>/<ext>/memory-tool/memories/` (grouped under the same
 project id as that workspace's sessions). The extension folder casing differs by
 scope (`GitHub.copilot-chat` vs `github.copilot-chat`), so both are probed; `.md`
-files are collected recursively.
+files are collected recursively, **except** `plan*.md` (those belong to Plans, above).
 
-### Plans — provider-agnostic
-Plans are not a Copilot concept; the shared `readers/plans.js` ignores the provider
-param. (The `hasPlans` capability gates the nav item.)
+### Plans — `ghcopilot-vscode-plans.js`
+Copilot has **no dedicated plans store** like Claude's `~/.claude/plans/`. Instead the
+built-in **Plan** agent persists the plan it produces through the *memory tool*, as a
+markdown file named `plan*.md` under `<ext>/memory-tool/memories/`. Per-session plans
+live in a memory dir named after the **base64-encoded session id** (so
+`…/memories/<base64(sessionId)>/plan.md`); the reader decodes that back to the session
+id to form a stable, friendly `filename`. Both scopes are scanned (global +
+per-workspace), mirroring the memory reader. The source is the memory-tool tree, so
+the memory reader **excludes** `plan*.md` (see below) to keep plans out of Memory and
+avoid showing the same file in two places. (The `hasPlans` capability gates the nav
+item.)
 
 ---
 
