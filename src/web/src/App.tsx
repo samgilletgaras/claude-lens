@@ -186,7 +186,11 @@ function App() {
   function handleDemoToggle(v: boolean) {
     setDemoMode(v);
     localStorage.setItem('lens-demo-mode', String(v));
-    refresh();
+    if (v) {
+      handleProviderChange('all');
+    } else {
+      refresh();
+    }
   }
 
   function handleIncludeVscodeInsidersChange(v: boolean) {
@@ -273,7 +277,7 @@ function App() {
 
   const activeProviderInfo = providers.find(p => p.id === provider) ?? null;
   const capabilities = activeProviderInfo?.capabilities ?? NO_CAPABILITIES;
-  const providerBadgeClass = `provider-badge provider-badge-${provider ? slugify(provider) : ''}`;
+  const providerBadgeClass = demoMode ? 'provider-badge opacity-50' : `provider-badge provider-badge-${provider ? slugify(provider) : ''}`;
   const SimpleView = SIMPLE_VIEWS[currentView];
 
   return (
@@ -390,14 +394,14 @@ function App() {
         {/* Active provider tag — sits directly above Settings; hidden when inside a project */}
         {activeProviderInfo && !activeProjectId && (
           <div className={`shrink-0 ${sidebarCollapsed ? 'p-1 flex justify-center' : 'px-2 py-2'}`}>
-            {!sidebarCollapsed && providers.length > 1 && (
+            {!sidebarCollapsed && providers.length > 1 && !demoMode && (
               <p className="text-[9px] text-lens-text-faint mb-1 px-0.5">Tip: click to switch provider quickly</p>
             )}
             {(() => { const Icon = iconFor(activeProviderInfo.icon); return (
               <button
                 onClick={cycleProvider}
-                disabled={providers.length < 2}
-                title={providers.length < 2 ? activeProviderInfo.name : `${activeProviderInfo.name} — click to switch provider`}
+                disabled={providers.length < 2 || demoMode}
+                title={demoMode ? 'Disable demo mode to switch providers' : providers.length < 2 ? activeProviderInfo.name : `${activeProviderInfo.name} — click to switch provider`}
                 className={`flex items-center gap-1.5 rounded border transition-colors enabled:hover:brightness-125 enabled:cursor-pointer disabled:cursor-default ${providerBadgeClass} ${sidebarCollapsed ? 'p-1.5 justify-center' : 'px-2 py-1 text-[11px] w-full'}`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />

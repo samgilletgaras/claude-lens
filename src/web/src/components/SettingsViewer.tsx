@@ -68,14 +68,14 @@ export function SettingsViewer({ demoMode, providers, provider, onProviderChange
             </div>
             <div className="flex gap-2 shrink-0 ml-6 flex-wrap justify-end">
               {providers.map(p => {
-                const disabled = !p.available && !demoMode;
+                const disabled = demoMode || !p.available;
                 const Icon = iconFor(p.icon);
                 return (
                   <button
                     key={p.id}
                     onClick={() => onProviderChange(p.id)}
                     disabled={disabled}
-                    title={disabled ? `No ${p.name} data found` : undefined}
+                    title={demoMode ? 'Disable demo mode to switch providers' : disabled ? `No ${p.name} data found` : undefined}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${provider === p.id ? 'border-lens-accent bg-lens-accent/10 text-lens-accent' : 'border-lens-border text-lens-text-sub hover:border-lens-border-hi'}`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
