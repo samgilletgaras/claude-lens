@@ -186,11 +186,11 @@ const server = http.createServer(async (req, res) => {
   if (q.pathname === '/api/agents') {
     const slug = q.get('slug', null);
     if (slug) {
-      if (q.get('demo')) { ok({ data: null }); return; }
+      if (q.get('demo')) { const d = demo.DEMO_AGENT_DETAIL?.[slug]; d ? ok({ data: d }) : err('Demo agent not found'); return; }
       try { ok({ data: agents.getAgentDetail(providerName, slug, q.get('from', null)) }); } catch(e) { err(e.message); }
       return;
     }
-    if (q.get('demo')) { ok({ data: [] }); return; }
+    if (q.get('demo')) { ok({ data: demo.DEMO_AGENTS ?? [] }); return; }
     try { ok({ data: await agents.getAgents(providerName) }); } catch(e) { err(e.message); }
     return;
   }
