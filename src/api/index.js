@@ -6,6 +6,7 @@ import * as demo from './demo-data.js';
 // Importing providers triggers all reader self-registrations
 import * as claudeProvider from './providers/claude.js';
 import * as ghcopilotProvider from './providers/ghcopilot-vscode.js';
+import * as cursorProvider from './providers/cursor.js';
 
 import * as sessions from './readers/sessions.js';
 import * as stats from './readers/stats.js';
@@ -20,6 +21,7 @@ import * as plans from './readers/plans.js';
 const PROVIDERS = {
   claude: claudeProvider,
   'ghcopilot-vscode': ghcopilotProvider,
+  cursor: cursorProvider,
 };
 
 // Default provider when the request omits ?provider= — first registered one.

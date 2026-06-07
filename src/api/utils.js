@@ -3,6 +3,24 @@ import os from 'os';
 
 export const PORT = process.env.PORT || 3000;
 export const CLAUDE_DIR = path.join(os.homedir(), '.claude');
+
+export const CURSOR_DATA_DIR     = path.join(os.homedir(), '.cursor');
+export const CURSOR_PROJECTS_DIR = path.join(CURSOR_DATA_DIR, 'projects');
+export const CURSOR_PLANS_DIR    = path.join(CURSOR_DATA_DIR, 'plans');
+export const CURSOR_SKILLS_DIR   = path.join(CURSOR_DATA_DIR, 'skills-cursor');
+
+export function getCursorAppDirs() {
+  const home = os.homedir();
+  const platform = os.platform();
+  if (platform === 'linux') {
+    const cfg = process.env.XDG_CONFIG_HOME || path.join(home, '.config');
+    return [path.join(cfg, 'Cursor', 'User')];
+  }
+  if (platform === 'darwin') {
+    return [path.join(home, 'Library', 'Application Support', 'Cursor', 'User')];
+  }
+  return [];
+}
 export const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects');
 export const SKILLS_DIR = path.join(CLAUDE_DIR, 'skills');
 export const AGENTS_DIR = path.join(CLAUDE_DIR, 'agents');

@@ -1,7 +1,7 @@
 # AI Lens — documentation index
 
 **AI Lens** is a local web app for browsing your AI coding-assistant session history
-across multiple providers (Claude Code, GitHub Copilot for VS Code, …). It reads
+across multiple providers (Claude Code, GitHub Copilot for VS Code, Cursor, …). It reads
 each provider's session/config files **directly off disk** and renders them as a
 timeline of messages, tool calls, and system events — plus skills, agents, MCP
 servers, memory, plans, and usage stats.
@@ -22,6 +22,7 @@ link to deeper detail pages.
 |----------|------------------|
 | Claude Code | [`claude/`](claude/README.md) — `~/.claude/` layout, the session JSONL envelope, and where projects, messages, logs, stats, skills, agents, MCPs, memory, and plans come from. |
 | GitHub Copilot (VS Code) | [`ghcopilot-vscode/`](ghcopilot-vscode/README.md) — VS Code storage layout, workspace/session discovery, and where each feature's data comes from. |
+| Cursor | [`cursor/`](cursor/README.md) — `~/.cursor/` layout, agent-transcript JSONL format, project slug decoding, plans, skills, and MCP metadata. |
 
 When you add or change a provider, add/extend its folder here in the same spirit.
 
