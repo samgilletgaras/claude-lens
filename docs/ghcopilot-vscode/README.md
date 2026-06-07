@@ -104,7 +104,8 @@ stream the transcript events as raw `{ project, session, lineNumber, raw }` enve
 ### Stats — `ghcopilot-vscode-stats.js`
 Streams transcripts and counts sessions, messages (`user.message` +
 `assistant.message`), tool calls (from `assistant.message.data.toolRequests[]`), an
-activity-by-day map, and top tools/projects. **`models` is populated** from
+activity-by-day map (one count per session, keyed to the session's last message
+timestamp — matching Claude/Cursor semantics), and top tools/projects. **`models` is populated** from
 `chatSessions/*.jsonl` per-request `modelId` fields (e.g. `"copilot/claude-opus-4.5"`),
 read alongside each transcript. **Token totals and cost remain 0** — individual token
 counts are not stored in the transcript or chatSessions files (only aggregate totals

@@ -22,18 +22,20 @@ async function getStats(project = null) {
     sessions += files.size;
     let projMessages = 0;
     for (const [sessionId, fileInfo] of files) {
+      let sessionLastTs = 0;
       try {
         await streamJsonl(fileInfo.filePath, event => {
           if (event.type !== 'user.message' && event.type !== 'assistant.message') return;
           messages++;
           projMessages++;
           const ts = event.timestamp ? new Date(event.timestamp).getTime() : null;
-          if (ts && isFinite(ts)) { const day = new Date(ts).toISOString().slice(0, 10); activity[day] = (activity[day] ?? 0) + 1; }
+          if (ts && isFinite(ts) && ts > sessionLastTs) sessionLastTs = ts;
           if (event.type === 'assistant.message' && Array.isArray(event.data?.toolRequests)) {
             for (const req of event.data.toolRequests) { toolCalls++; const name = req.name ?? 'unknown'; topToolsMap.set(name, (topToolsMap.get(name) ?? 0) + 1); }
           }
         });
       } catch { /* skip */ }
+      if (sessionLastTs > 0) { const day = new Date(sessionLastTs).toISOString().slice(0, 10); activity[day] = (activity[day] ?? 0) + 1; }
       try {
         const reqs = await readChatRequests(fileInfo.filePath, sessionId);
         if (reqs) {
