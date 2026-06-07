@@ -1,5 +1,7 @@
 # AI tooling
 .claude/
+.cursor/
+.github/
 
 # Dependencies
 node_modules/
