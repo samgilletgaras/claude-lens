@@ -138,38 +138,59 @@ export async function streamJsonl(filePath, onLine) {
 
 // ─── chatSessions (VS Code native chat store) ─────────────────────────────────
 
-// Copilot's transcripts/*.jsonl does NOT record the opening user prompt — every
-// session begins session.start → assistant.message, and the first turn's prompt
-// (plus the occasional slash-command / "Try Again" turn) is simply absent. The
-// complete, ordered list of user prompts lives in VS Code's sibling
-// chatSessions/<sessionId>.jsonl (same session UUID, agent.extensionId
-// "GitHub.copilot-chat"). We only ever open the chatSessions file whose id
-// matches a transcript we already found, so this stays scoped to this provider's
-// own (VS Code Copilot) data — not another editor.
+// Copilot stores conversations differently depending on the producer version:
+//
+//   Legacy (producer absent / "copilot"):
+//     transcripts/<id>.jsonl contains session.start → user.message / assistant.message
+//     events, but the very first user prompt is missing from the transcript.
+//     chatSessions/<id>.jsonl fills that gap — it has every user prompt in order.
+//
+//   Newer agent format (producer "copilot-agent", version ≥ 1):
+//     transcripts/<id>.jsonl only has session.start — no user or assistant events.
+//     The entire conversation lives in chatSessions/<id>.jsonl:
+//       user messages  → kind:2 request objects (message.text)
+//       assistant text → kind:1 result patches (result.metadata.toolCallRounds[].response)
+//
+// In both cases we read from chatSessions whenever available so we get a complete
+// picture. We only open chatSessions files whose sessionId matches a transcript we
+// already found, keeping this strictly scoped to VS Code Copilot data.
 function chatSessionPathFor(transcriptPath, sessionId) {
   // transcriptPath = <hash>/GitHub.copilot-chat/transcripts/<id>.jsonl
   return path.join(path.dirname(transcriptPath), '..', '..', 'chatSessions', `${sessionId}.jsonl`);
 }
 
-// The file is an append-only "observable diff" log: a kind:0 base snapshot, then
-// kind:2 array-appends to ["requests"], and kind:1 path patches we ignore. We
-// only need each request's prompt text + timestamp, so we accumulate the base's
-// requests then every appended batch, in order.
+// The file is an append-only "observable diff" log:
+//   kind:0 — base snapshot (may have requests: [] when session starts)
+//   kind:2 — array-append to ["requests"]: the new request object (result: {} is empty here)
+//   kind:1 — path patches, e.g. ["requests", N, "result"] carries the actual
+//             assistant response (toolCallRounds) once the model finishes
+//
+// We reconstruct the full conversation by accumulating requests from kind:0/kind:2
+// and then applying kind:1 result patches so toolCallRounds is populated.
 export async function readChatRequests(transcriptPath, sessionId) {
   const chatPath = chatSessionPathFor(transcriptPath, sessionId);
   if (!fs.existsSync(chatPath)) return null;
   const requests = [];
+  const resultPatches = new Map(); // requestIndex → result object
   try {
     await streamJsonl(chatPath, ev => {
       if (ev.kind === 0 && Array.isArray(ev.v?.requests)) requests.push(...ev.v.requests);
       else if (ev.kind === 2 && Array.isArray(ev.k) && ev.k.length === 1 && ev.k[0] === 'requests' && Array.isArray(ev.v)) requests.push(...ev.v);
+      else if (ev.kind === 1 && Array.isArray(ev.k) && ev.k.length === 3 && ev.k[0] === 'requests' && typeof ev.k[1] === 'number' && ev.k[2] === 'result') {
+        resultPatches.set(ev.k[1], ev.v);
+      }
     });
   } catch { return null; }
+  // Apply result patches — this is where toolCallRounds (assistant responses) live
+  for (const [index, result] of resultPatches) {
+    if (index < requests.length) requests[index] = { ...requests[index], result };
+  }
   return requests.map(r => ({
     text: typeof r?.message?.text === 'string' ? r.message.text : '',
     timestamp: typeof r?.timestamp === 'number' ? r.timestamp : 0,
     modelId: typeof r?.modelId === 'string' ? r.modelId : null,
     completionTokens: typeof r?.completionTokens === 'number' ? r.completionTokens : 0,
+    toolCallRounds: Array.isArray(r?.result?.metadata?.toolCallRounds) ? r.result.metadata.toolCallRounds : [],
   }));
 }
 
@@ -213,17 +234,26 @@ async function summariseFile(filePath, sessionId, project) {
 
 function tryParseJson(s) { try { return JSON.parse(s); } catch { return s; } }
 
+// Returns an array of flat normalized events for one assistant turn.
 function normaliseAssistant(event) {
   const d = event.data ?? {};
-  const blocks = [];
-  if (d.content && typeof d.content === 'string' && d.content.trim()) blocks.push({ type: 'text', text: d.content });
+  const ts = event.timestamp ? new Date(event.timestamp).getTime() : 0;
+  const out = [];
+  if (d.content && typeof d.content === 'string' && d.content.trim()) {
+    out.push({ role: 'assistant', content: d.content, timestamp: ts });
+  }
   if (Array.isArray(d.toolRequests)) {
     for (const req of d.toolRequests) {
-      blocks.push({ type: 'tool_use', id: req.toolCallId ?? req.id ?? '', name: req.name ?? '', input: typeof req.arguments === 'string' ? tryParseJson(req.arguments) : (req.arguments ?? {}) });
+      out.push({
+        role: 'tool_use',
+        name: req.name ?? '',
+        input: typeof req.arguments === 'string' ? tryParseJson(req.arguments) : (req.arguments ?? {}),
+        id: req.toolCallId ?? req.id ?? undefined,
+        timestamp: ts,
+      });
     }
   }
-  if (blocks.length === 0) return null;
-  return { role: 'assistant', content: blocks, timestamp: event.timestamp ? new Date(event.timestamp).getTime() : 0 };
+  return out;
 }
 
 // ─── Implementations ──────────────────────────────────────────────────────────
@@ -275,16 +305,42 @@ async function getMessages(project, session) {
   // Assistant turns (with tool calls) come from the transcript.
   const assistantMsgs = [];
   await streamJsonl(fileInfo.filePath, event => {
-    if (event.type === 'assistant.message') { const msg = normaliseAssistant(event); if (msg) assistantMsgs.push(msg); }
+    if (event.type === 'assistant.message') { assistantMsgs.push(...normaliseAssistant(event)); }
   });
 
   // User turns come from chatSessions when available — it's a superset that
   // includes the opening prompt the transcript omits. Fall back to the
   // transcript's user.message events if the chatSessions file is missing.
+  //
+  // For sessions produced by the newer copilot-agent format the transcript only
+  // contains session.start (no assistant.message events); assistant responses
+  // live in chatSessions' toolCallRounds, so we extract them from there when
+  // the transcript-based assistantMsgs list is empty.
   const reqs = await readChatRequests(fileInfo.filePath, session);
   let userMsgs;
   if (reqs) {
     userMsgs = reqs.filter(r => r.text).map(r => ({ role: 'user', content: r.text, timestamp: r.timestamp }));
+    if (assistantMsgs.length === 0) {
+      for (const r of reqs) {
+        for (const round of r.toolCallRounds) {
+          const roundTs = typeof round.timestamp === 'number' ? round.timestamp : r.timestamp + 1;
+          if (round.response && round.response.trim()) {
+            assistantMsgs.push({ role: 'assistant', content: round.response, timestamp: roundTs });
+          }
+          if (Array.isArray(round.toolCalls)) {
+            for (const tc of round.toolCalls) {
+              assistantMsgs.push({
+                role: 'tool_use',
+                name: tc.function?.name ?? tc.name ?? '',
+                input: tryParseJson(tc.function?.arguments ?? tc.arguments ?? '{}'),
+                id: tc.id ?? undefined,
+                timestamp: roundTs,
+              });
+            }
+          }
+        }
+      }
+    }
   } else {
     userMsgs = [];
     await streamJsonl(fileInfo.filePath, event => {

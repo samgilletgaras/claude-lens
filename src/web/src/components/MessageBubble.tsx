@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { Message, Block, AttachmentContent } from '../types';
+import type { Message, AttachmentContent } from '../types';
 import { ChevronDown, ChevronRight, BrainCircuit, Play, CheckCircle2, XCircle, Terminal, Activity, Zap, AlertTriangle, Copy, Check } from 'lucide-react';
 import { formatRelative } from '../utils';
 
-function formatTime(timestamp?: number) {
+function formatTime(timestamp?: number | null) {
   if (!timestamp) return '';
   return formatRelative(timestamp);
 }
@@ -34,9 +34,9 @@ function CopyButton({ text }: { text: string }) {
 function MarkdownBlock({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = text.length > 400 || text.split('\n').length > 10;
-  
+
   return (
-    <div className="relative group bg-lens-border/20 border border-lens-border/60 rounded-xl p-4 md:p-6 relative">
+    <div className="relative group bg-lens-border/20 border border-lens-border/60 rounded-xl p-4 md:p-6">
       <div className={`prose max-w-none prose-pre:bg-lens-deep prose-pre:border prose-pre:border-lens-border prose-code:text-lens-accent text-lens-text-body ${!expanded && isLong ? 'line-clamp-6 relative' : ''}`}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
         {!expanded && isLong && (
@@ -58,12 +58,23 @@ function MarkdownBlock({ text }: { text: string }) {
   );
 }
 
-function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isCommand = false, useMarkdown = false, timestamp, collapseSignal }: { icon: React.ElementType, dotColor: string, textColor: string, title: string, content?: string | React.ReactNode, isCommand?: boolean, useMarkdown?: boolean, timestamp?: number, collapseSignal?: number }) {
+function PipelineEvent({
+  icon: Icon, dotColor, textColor, title, content,
+  isCommand = false, useMarkdown = false, timestamp, collapseSignal,
+}: {
+  icon: React.ElementType;
+  dotColor: string;
+  textColor: string;
+  title: string;
+  content?: string | React.ReactNode;
+  isCommand?: boolean;
+  useMarkdown?: boolean;
+  timestamp?: number | null;
+  collapseSignal?: number;
+}) {
   const [expanded, setExpanded] = useState(false);
   const hasContent = !!content;
 
-  // Collapse-all: when the parent bumps collapseSignal, reset during render
-  // (React's "adjust state on prop change" idiom) rather than in an effect.
   const [prevSignal, setPrevSignal] = useState(collapseSignal);
   if (collapseSignal !== prevSignal) {
     setPrevSignal(collapseSignal);
@@ -94,29 +105,29 @@ function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isComm
           <Icon className="w-3 h-3 mr-1.5" />
           <span className={`${isCommand ? 'font-mono' : ''}`}>{title}</span>
         </button>
-        
+
         {expanded && hasContent && (
           <div className="pl-6 pb-2 pt-1 relative">
-             <div className="absolute left-1.5 top-0 bottom-0 w-px bg-lens-border/40" />
-             {useMarkdown && typeof content === 'string' ? (
-                <div className="text-[12px] bg-lens-surface/50 p-4 rounded-xl border border-lens-border/60 shadow-inner relative">
-                  <div className="absolute top-2 right-2"><CopyButton text={content} /></div>
-                  <div className="prose max-w-none prose-sm prose-pre:bg-lens-deep prose-pre:border prose-pre:border-lens-border prose-p:leading-snug prose-li:leading-snug text-lens-text-sub">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-                  </div>
+            <div className="absolute left-1.5 top-0 bottom-0 w-px bg-lens-border/40" />
+            {useMarkdown && typeof content === 'string' ? (
+              <div className="text-[12px] bg-lens-surface/50 p-4 rounded-xl border border-lens-border/60 shadow-inner relative">
+                <div className="absolute top-2 right-2"><CopyButton text={content} /></div>
+                <div className="prose max-w-none prose-sm prose-pre:bg-lens-deep prose-pre:border prose-pre:border-lens-border prose-p:leading-snug prose-li:leading-snug text-lens-text-sub">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                 </div>
-             ) : typeof content === 'string' ? (
-                <div className="relative">
-                  <div className="absolute top-2 right-2 z-10"><CopyButton text={content} /></div>
-                  <div className="text-[10px] text-lens-text-sub max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-lens-deep/80 p-3 pr-16 rounded-md border border-lens-border/80 shadow-inner">
-                    {content}
-                  </div>
-                </div>
-             ) : (
-                <div className="text-[10px] text-lens-text-sub max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-lens-deep/80 p-3 rounded-md border border-lens-border/80 shadow-inner">
+              </div>
+            ) : typeof content === 'string' ? (
+              <div className="relative">
+                <div className="absolute top-2 right-2 z-10"><CopyButton text={content} /></div>
+                <div className="text-[10px] text-lens-text-sub max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-lens-deep/80 p-3 pr-16 rounded-md border border-lens-border/80 shadow-inner">
                   {content}
                 </div>
-             )}
+              </div>
+            ) : (
+              <div className="text-[10px] text-lens-text-sub max-h-64 overflow-y-auto font-mono whitespace-pre-wrap bg-lens-deep/80 p-3 rounded-md border border-lens-border/80 shadow-inner">
+                {content}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -124,10 +135,10 @@ function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isComm
   );
 }
 
-function AvatarBlock({ isUser, node, timestamp }: { isUser: boolean, node: React.ReactNode, timestamp?: number }) {
+function AvatarBlock({ isUser, node, timestamp }: { isUser: boolean; node: React.ReactNode; timestamp?: number | null }) {
   const textColor = isUser ? 'text-lens-accent/70' : 'text-emerald-500/70';
-  const bgColor = isUser ? 'bg-lens-accent' : 'bg-emerald-500';
-  const label = isUser ? 'User' : 'Assistant';
+  const bgColor   = isUser ? 'bg-lens-accent'      : 'bg-emerald-500';
+  const label     = isUser ? 'User'                : 'Assistant';
 
   return (
     <div className="relative flex w-full mb-2 group pt-2 pb-6 items-start">
@@ -144,113 +155,129 @@ function AvatarBlock({ isUser, node, timestamp }: { isUser: boolean, node: React
       )}
 
       <div className="flex-1 min-w-0">
-         <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center ${textColor}`}>
-           {label}
-         </div>
-         <div className="ml-1 md:ml-0">
-           {node}
-         </div>
+        <div className={`text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center ${textColor}`}>
+          {label}
+        </div>
+        <div className="ml-1 md:ml-0">
+          {node}
+        </div>
       </div>
     </div>
   );
 }
 
-export function MessageBubble({ message, collapseSignal }: { message: Message, collapseSignal?: number }) {
+// ─── Main export ──────────────────────────────────────────────────────────────
+
+export function MessageBubble({ message, collapseSignal }: { message: Message; collapseSignal?: number }) {
+  const ts = message.timestamp ?? undefined;
+
+  // ── Pipeline events (role decides icon + colors, no block iteration) ────────
+
   if (message.role === 'system_attachment') {
     const att = message.content as AttachmentContent;
     const title = att.hookEvent ? `Hook: ${att.hookEvent} (${att.type})` : (att.command || 'System Attachment');
     const isError = att.exitCode !== undefined && att.exitCode !== 0;
-    const dotColor = isError ? 'bg-red-500' : 'bg-blue-500';
-    const textColor = isError ? 'text-red-400/80 hover:text-red-300' : 'text-blue-400/80 hover:text-blue-300';
-
-    return <PipelineEvent timestamp={message.timestamp} icon={Activity} dotColor={dotColor} textColor={textColor} title={title} content={att.stdout || att.content || JSON.stringify(att, null, 2)} collapseSignal={collapseSignal} />;
+    return (
+      <PipelineEvent
+        timestamp={ts} icon={Activity}
+        dotColor={isError ? 'bg-red-500' : 'bg-blue-500'}
+        textColor={isError ? 'text-red-400/80 hover:text-red-300' : 'text-blue-400/80 hover:text-blue-300'}
+        title={title}
+        content={att.stdout || att.content || JSON.stringify(att, null, 2)}
+        collapseSignal={collapseSignal}
+      />
+    );
   }
 
   if (message.role === 'system') {
-    return <PipelineEvent timestamp={message.timestamp} icon={Zap} dotColor="bg-lens-text-dim" textColor="text-lens-text-sub/80 hover:text-lens-text-body" title="System Event" content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)} collapseSignal={collapseSignal} />;
+    return (
+      <PipelineEvent
+        timestamp={ts} icon={Zap}
+        dotColor="bg-lens-text-dim" textColor="text-lens-text-sub/80 hover:text-lens-text-body"
+        title="System Event"
+        content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+        collapseSignal={collapseSignal}
+      />
+    );
   }
 
-  const isUser = message.role === 'user';
-  const contentArray: Block[] = Array.isArray(message.content)
-    ? message.content
-    : typeof message.content === 'string'
-      ? [{ type: 'text', text: message.content }]
-      : [{ type: 'text', text: JSON.stringify(message.content) }];
+  if (message.role === 'thinking') {
+    // Plain pre-wrap (not Markdown) — Claude's thinking blocks contain raw XML/Markdown
+    // that ReactMarkdown misparses, producing empty containers.
+    return (
+      <PipelineEvent
+        timestamp={ts} icon={BrainCircuit}
+        dotColor="bg-indigo-500" textColor="text-indigo-400/80 hover:text-indigo-300"
+        title="Thought Process"
+        content={typeof message.content === 'string' ? message.content : ''}
+        useMarkdown={false}
+        collapseSignal={collapseSignal}
+      />
+    );
+  }
+
+  if (message.role === 'tool_use') {
+    const inputStr = JSON.stringify(message.input ?? {}, null, 2);
+    return (
+      <PipelineEvent
+        timestamp={ts} icon={Play}
+        dotColor="bg-blue-500" textColor="text-blue-400/80 hover:text-blue-300"
+        title={`Tool Use: ${message.name ?? ''}`}
+        isCommand
+        content={inputStr}
+        collapseSignal={collapseSignal}
+      />
+    );
+  }
+
+  if (message.role === 'tool_result') {
+    const isError = message.is_error === true;
+    return (
+      <PipelineEvent
+        timestamp={ts}
+        icon={isError ? XCircle : CheckCircle2}
+        dotColor={isError ? 'bg-red-500' : 'bg-emerald-500'}
+        textColor={isError ? 'text-red-400/80 hover:text-red-300' : 'text-emerald-400/80 hover:text-emerald-300'}
+        title="Tool Result"
+        content={typeof message.content === 'string' ? message.content : ''}
+        collapseSignal={collapseSignal}
+      />
+    );
+  }
+
+  if (message.role === 'local_command') {
+    return (
+      <div className="flex flex-col w-full">
+        {message.caveat && (
+          <PipelineEvent
+            timestamp={ts} icon={AlertTriangle}
+            dotColor="bg-lens-accent" textColor="text-lens-accent/80 hover:text-lens-accent"
+            title="Local Command Override"
+            content={message.caveat}
+            collapseSignal={collapseSignal}
+          />
+        )}
+        <PipelineEvent
+          timestamp={ts} icon={Terminal}
+          dotColor="bg-lens-accent" textColor="text-lens-accent/80 hover:text-lens-accent"
+          title={`Local Command: ${message.name ?? ''}`}
+          isCommand
+          collapseSignal={collapseSignal}
+        />
+      </div>
+    );
+  }
+
+  // ── Conversation turns (user / assistant) ───────────────────────────────────
+
+  const text = typeof message.content === 'string' ? message.content : '';
+  if (!text) return null;
 
   return (
-    <div className="w-full relative">
-      {contentArray.map((block, i) => {
-        if (block.type === 'text') {
-           const originalText = block.text || '';
-           let text = originalText;
-           
-           let caveatStr = null;
-           const caveatRegex = /<local-command-caveat>([\s\S]*?)<\/local-command-caveat>/g;
-           const caveatMatch = text.match(caveatRegex);
-           if (caveatMatch) {
-             caveatStr = caveatMatch.map((c: string) => c.replace(/<\/?local-command-caveat>/g, '').trim()).join('\n');
-             text = text.replace(caveatRegex, '').trim();
-           }
-
-           let commandMsgStr = null;
-           const cmdMsgRegex = /<command-message>([\s\S]*?)<\/command-message>/g;
-           const cmdMsgMatch = text.match(cmdMsgRegex);
-           if (cmdMsgMatch) {
-             commandMsgStr = cmdMsgMatch.map((c: string) => c.replace(/<\/?command-message>/g, '').trim()).join(', ');
-             text = text.replace(cmdMsgRegex, '').trim();
-           }
-
-           text = text.replace(/<command-args>([\s\S]*?)<\/command-args>/g, '').trim();
-
-           const cmdMatch = text.match(/<command-name>(.*?)<\/command-name>/);
-           let localCommandName = null;
-           if (cmdMatch) {
-             localCommandName = cmdMatch[1];
-             text = text.replace(/<command-name>.*?<\/command-name>/, '').trim();
-           }
-
-           if (commandMsgStr && !localCommandName) {
-             localCommandName = commandMsgStr;
-           }
-
-           return (
-             <div key={i} className="flex flex-col w-full">
-               {caveatStr && (
-                 <PipelineEvent timestamp={message.timestamp} icon={AlertTriangle} dotColor="bg-lens-accent" textColor="text-lens-accent/80 hover:text-lens-accent" title="Local Command Override" isCommand={false} content={caveatStr} collapseSignal={collapseSignal} />
-               )}
-               {localCommandName && (
-                 <PipelineEvent timestamp={message.timestamp} icon={Terminal} dotColor="bg-lens-accent" textColor="text-lens-accent/80 hover:text-lens-accent" title={`Local Command: ${localCommandName}`} isCommand={true} content={""} collapseSignal={collapseSignal} />
-               )}
-               {text && (
-                 <AvatarBlock timestamp={message.timestamp} isUser={isUser} node={<MarkdownBlock text={text} />} />
-               )}
-             </div>
-           );
-        }
-        
-        if (block.type === 'thinking') {
-           // Do not use Markdown for thinking blocks because Claude injects broken XML tags and Markdown
-           // elements within its thoughts that cause ReactMarkdown to silently fail or swallow the entire block,
-           // resulting in an empty container. Plain text pre-wrap guarantees visibility.
-           return <PipelineEvent timestamp={message.timestamp} key={i} icon={BrainCircuit} dotColor="bg-indigo-500" textColor="text-indigo-400/80 hover:text-indigo-300" title="Thought Process" content={block.thinking} useMarkdown={false} collapseSignal={collapseSignal} />
-        }
-
-        if (block.type === 'tool_use') {
-           const inputStr = typeof block.input === 'string' ? block.input : JSON.stringify(block.input, null, 2);
-           return <PipelineEvent timestamp={message.timestamp} key={i} icon={Play} dotColor="bg-blue-500" textColor="text-blue-400/80 hover:text-blue-300" title={`Tool Use: ${block.name}`} isCommand={true} content={inputStr} collapseSignal={collapseSignal} />;
-        }
-
-        if (block.type === 'tool_result') {
-           const isError = block.is_error || (typeof block.content === 'string' && block.content.toLowerCase().includes('error'));
-           const dotColor = isError ? 'bg-red-500' : 'bg-emerald-500';
-           const textColor = isError ? 'text-red-400/80 hover:text-red-300' : 'text-emerald-400/80 hover:text-emerald-300';
-           const Icon = isError ? XCircle : CheckCircle2;
-           const resText = typeof block.content === 'string' ? block.content : JSON.stringify(block.content, null, 2);
-           return <PipelineEvent timestamp={message.timestamp} key={i} icon={Icon} dotColor={dotColor} textColor={textColor} title={`Tool Result`} content={resText} collapseSignal={collapseSignal} />;
-        }
-
-        return null;
-      })}
-    </div>
+    <AvatarBlock
+      isUser={message.role === 'user'}
+      timestamp={ts}
+      node={<MarkdownBlock text={text} />}
+    />
   );
 }

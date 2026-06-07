@@ -6,7 +6,7 @@ formats, what each one contains, where they disagree, and the reasoning behind h
 the `ghcopilot-vscode` reader sources its data.
 
 All findings below were verified against real session files on a Linux machine
-(VS Code stable, Copilot Chat extension `0.48.1`, VS Code `1.119.0`).
+(VS Code stable, Copilot Chat extension `0.48.1`–`0.50.0`, VS Code `1.119.0`–`1.122.0`).
 
 ---
 
@@ -42,17 +42,22 @@ The two files for one conversation share the **same session UUID**.
 
 ### 1. `transcripts/<id>.jsonl` — Copilot extension (flat event stream)
 
-One JSON object per line. Event types observed (with counts across 14 sessions):
+One JSON object per line. Event types observed:
 
 ```
 assistant.turn_start / assistant.turn_end
 assistant.message        (text + reasoningText + toolRequests[])
 tool.execution_start / tool.execution_complete   ({ success, toolCallId } only)
 user.message             (data.content)
-session.start            (copilotVersion, vscodeVersion, startTime, …)
+session.start            (copilotVersion, vscodeVersion, startTime, producer, …)
 ```
 
 Clean and easy to parse. **But it is assistant-centric and lossy** (see below).
+
+> **Newer copilot-agent format (extension ≥ 0.50, VS Code ≥ 1.122):** sessions
+> produced with `producer: "copilot-agent"` (version 1) contain **only
+> `session.start`** — no `user.message` or `assistant.message` events at all.
+> The full conversation lives exclusively in `chatSessions` (see below).
 
 ### 2. `chatSessions/<id>.jsonl` — VS Code core (observable-diff log)
 
@@ -70,20 +75,46 @@ and grown via `kind:2` appends to `["requests"]`. Each request looks like:
 ```jsonc
 {
   "requestId": "...",
-  "timestamp": 1779713781178,          // epoch ms
+  "timestamp": 1779713781178,          // epoch ms — when the user sent the message
   "agent": { "extensionId": { "value": "GitHub.copilot-chat" },
              "extensionVersion": "0.48.1", "id": "github.copilot.editsAgent" },
   "modelId": "...",
   "message": { "text": "/bmad-brainstorming lets brainstorm...", "parts": [...] },
-  "response": [ /* stream of parts, see below */ ]
+  "response": [ /* stream of parts, see below */ ],   // may be empty until result patch arrives
+  "result": { /* populated via kind:1 patch once the model finishes */ }
 }
 ```
 
-The `response` array is a stream of typed parts:
+**Important:** in the newer copilot-agent format the request object written by the
+`kind:2` append has `result: {}` (empty). The actual response data arrives in a
+subsequent `kind:1` patch:
 
-- **markdown** — `{ baseUri, value, supportHtml, supportThemeIcons }` (the assistant's text; *no* `kind` field)
+```jsonc
+{ "kind": 1, "k": ["requests", 0, "result"], "v": {
+    "metadata": {
+      "toolCallRounds": [
+        { "response": "OK",       // the assistant's text reply
+          "toolCalls": [          // tool calls made in this round
+            { "name": "run_in_terminal",
+              "arguments": "{\"command\":\"npm test\",...}" }
+          ],
+          "timestamp": 1780836502922,
+          "modelId": "gemini-3-flash-preview" }
+      ]
+    }
+  }
+}
+```
+
+Tool call format in `toolCallRounds[].toolCalls[]` is `{ name, arguments }` where
+`arguments` is a JSON string (same shape as the transcript's `toolRequests[]`).
+
+The legacy `response` array (stream of typed parts) is still written for older
+sessions and may contain:
+
+- **markdown** — `{ baseUri, value, supportHtml, supportThemeIcons }` (assistant text; *no* `kind` field)
 - `thinking` — reasoning
-- `toolInvocationSerialized` — a tool call (see tool section)
+- `toolInvocationSerialized` — a tool call
 - `inlineReference` — a file/symbol reference
 
 ---
@@ -179,29 +210,41 @@ open the matching chatSession by id.
 
 `src/api/readers/ghcopilot-vscode/ghcopilot-vscode-sessions.js`:
 
-- **Discovery + assistant/tool turns** → from the **transcript** (clean, uniform
-  tool inputs, easy to parse).
-- **User turns** → from the **chatSession** (`requests[].message.text` + timestamp),
-  a superset that includes the opening prompt. Falls back to transcript
-  `user.message` events if no chatSession file exists.
-- The two streams are **merged chronologically by timestamp** (user wins ties, so a
-  prompt precedes its assistant turn). Verified chronological on all sessions.
-- Session list **preview + turn count** also come from the chatSession so the list
-  shows the real first prompt.
+- **Discovery** → always from the **transcript** folder (Copilot is the only writer).
+- **Assistant/tool turns (legacy format)** → from transcript `assistant.message`
+  events (clean, uniform `toolRequests[]` args).
+- **Assistant/tool turns (copilot-agent format)** → from chatSession `kind:1` result
+  patches (`result.metadata.toolCallRounds[].response` + `.toolCalls[]`). These are
+  applied when the transcript has no `assistant.message` events.
+- **User turns** → from the chatSession (`requests[].message.text` + timestamp) in
+  all cases — a superset that includes the opening prompt the transcript omits. Falls
+  back to transcript `user.message` events only if no chatSession file exists.
+- The two streams are **merged chronologically by timestamp** (user wins ties).
+- Session list **preview + turn count** also come from the chatSession.
+
+### `readChatRequests` — how kind:1 result patches are applied
+
+`readChatRequests` collects three categories of lines in one pass:
+1. `kind:0` base — seeds the `requests` array (often `requests: []` initially)
+2. `kind:2` appends to `["requests"]` — each new request (with empty `result`)
+3. `kind:1` patches where `k = ["requests", N, "result"]` — stored by index
+
+After streaming, the patches are applied so every `requests[N].result.metadata.toolCallRounds`
+is populated before the caller sees the data.
 
 ### Why a hybrid rather than "only chatSessions"
 
 Each file is the **authoritative source for a different slice**:
 
-- chatSession is authoritative for **user prompts** (transcript is lossy).
-- transcript is authoritative for **tool calls** (uniform raw args; chatSession's
-  form is per-tool and drops rationale).
+- chatSession is authoritative for **user prompts** (transcript is lossy) and for
+  **all data in the newer copilot-agent format**.
+- transcript is authoritative for **tool calls in the legacy format** (uniform raw
+  args with `explanation`/`goal` fields; chatSession's `toolSpecificData` is
+  per-tool-type and drops rationale).
 
 Going sole-chatSessions would *gain* the 6 missing sessions + exit codes, but would
-*cost*: a heavier/brittler parser (observable-diff + per-tool `toolSpecificData`
-adapters), the loss of model tool-rationale and `vscodeVersion`, and a need for
-`extensionId` filtering. Neither file dominates, so the hybrid picks the right
-authority per slice.
+*cost* a heavier parser and the loss of `vscodeVersion`. The hybrid picks the right
+authority per slice and degrades gracefully across both format generations.
 
 ### A possible future "flipped hybrid" (not implemented)
 

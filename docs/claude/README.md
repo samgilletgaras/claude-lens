@@ -122,9 +122,14 @@ Streams each `*.jsonl` once to compute `firstMessageTs`, `lastUpdated`, a `previ
 **Cache key = file names + mtimes** (re-reads only when a file changes).
 
 ### Messages — `claude-sessions.js : getMessages`
-Streams one session file and maps each line to a message: `user`→user,
-`assistant`→assistant, `attachment`→`system_attachment` (carrying `attachment`),
-`system`→system. Cached by file mtime.
+Streams one session file and **flattens** each line into the normalized message contract (see `docs/README.md`). Each Anthropic content block becomes its own event:
+
+- `user` lines: `tool_result` blocks → `{ role: 'tool_result' }` events; text blocks are parsed for Claude slash-command XML tags (`<command-name>`, `<local-command-caveat>`, `<command-args>`, `<command-message>`) and emitted as `{ role: 'local_command' }` + `{ role: 'user' }`.
+- `assistant` lines: `thinking` blocks → `{ role: 'thinking' }`; `text` blocks → `{ role: 'assistant' }`; `tool_use` blocks → `{ role: 'tool_use' }`.
+- `attachment` lines → `{ role: 'system_attachment' }` (hook events, tool outputs).
+- `system` lines → `{ role: 'system' }`.
+
+Claude Code produces the richest event timeline: thinking, tool calls, tool results, hook events, system notices, and slash-command metadata are all present on disk and faithfully surfaced. Cached by file mtime.
 
 ### Logs — `claude-logs.js : getLogs`
 Streams **every** session file across all projects and emits raw line envelopes

@@ -50,10 +50,64 @@ function slugToPath(slug, slugMap) {
 
 // ─── Transcript scanning ──────────────────────────────────────────────────────
 
-// Returns the text of the first user message, stripped of XML wrapper tags.
+// Returns the text of the first user message, stripped of Cursor-injected XML
+// wrapper tags. Extracts the <user_query> content when present so that injected
+// metadata (timestamp, user_info, …) never leaks into the session preview.
 function extractPreview(text) {
   if (typeof text !== 'string') return null;
-  return text.replace(/<[^>]+>/g, '').trim().slice(0, 150) || null;
+  // Prefer the inner text of <user_query> as the canonical preview
+  const uqMatch = text.match(/<user_query>([\s\S]*?)<\/user_query>/);
+  if (uqMatch) text = uqMatch[1];
+  // Strip any remaining block tags together with their content
+  text = text.replace(/<[a-zA-Z_][a-zA-Z0-9_-]*>[\s\S]*?<\/[a-zA-Z_][a-zA-Z0-9_-]*>/g, '');
+  // Strip any leftover opening/self-closing tags
+  text = text.replace(/<[^>]+>/g, '').trim();
+  return text.slice(0, 150) || null;
+}
+
+// ─── Block flattening helpers ─────────────────────────────────────────────────
+
+// Flatten a Cursor user message's content into normalized events.
+// Strips Cursor-injected XML wrappers (<timestamp>, <user_info>, etc.),
+// promotes <system_reminder> to system events, and extracts <user_query> text.
+function flattenCursorUser(content, ts, out) {
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    if (block?.type !== 'text' || !block.text) continue;
+    let text = block.text;
+
+    // Extract <system_reminder> → emit as system events
+    const sysRe = /<system_reminder>([\s\S]*?)<\/system_reminder>/g;
+    let m;
+    while ((m = sysRe.exec(text)) !== null) {
+      const reminder = m[1].trim();
+      if (reminder) out.push({ role: 'system', content: reminder, timestamp: ts });
+    }
+    text = text.replace(/<system_reminder>[\s\S]*?<\/system_reminder>/g, '');
+
+    // Extract the user's actual query from its wrapper
+    const uqMatch = text.match(/<user_query>([\s\S]*?)<\/user_query>/);
+    if (uqMatch) text = uqMatch[1];
+
+    // Strip remaining injected block tags (timestamp, user_info, attached_files, git_status, …)
+    text = text.replace(/<[a-zA-Z_][a-zA-Z0-9_-]*>[\s\S]*?<\/[a-zA-Z_][a-zA-Z0-9_-]*>/g, '');
+    text = text.replace(/<[^>]+>/g, '').trim();
+
+    if (text) out.push({ role: 'user', content: text, timestamp: ts });
+  }
+}
+
+// Flatten a Cursor assistant message's content into normalized events.
+function flattenCursorAssistant(content, ts, out) {
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    if (!block) continue;
+    if (block.type === 'text' && block.text?.trim()) {
+      out.push({ role: 'assistant', content: block.text, timestamp: ts });
+    } else if (block.type === 'tool_use') {
+      out.push({ role: 'tool_use', name: block.name, input: block.input ?? {}, id: block.id, timestamp: ts });
+    }
+  }
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -173,11 +227,12 @@ async function getMessages(project, sessionId) {
     let msg;
     try { msg = JSON.parse(line); } catch { continue; }
     if (!msg.role || !msg.message?.content) continue;
-    messages.push({
-      role: msg.role,
-      content: msg.message.content,
-      timestamp: null,
-    });
+
+    if (msg.role === 'user') {
+      flattenCursorUser(msg.message.content, null, messages);
+    } else if (msg.role === 'assistant') {
+      flattenCursorAssistant(msg.message.content, null, messages);
+    }
   }
   return messages;
 }

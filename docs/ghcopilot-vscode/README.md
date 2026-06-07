@@ -95,11 +95,32 @@ wins.
 ## Where each feature's data comes from
 
 ### Sessions, messages, logs — `ghcopilot-vscode-sessions.js` / `-logs.js`
-Sessions are discovered from `transcripts/`, but the transcript **drops the opening
-user prompt** (and some turns), so user turns are sourced from the sibling
-`chatSessions/<id>.jsonl` and merged with the transcript's assistant/tool turns by
-timestamp. This is the subject of the [detail page](session-storage.md). Logs
-stream the transcript events as raw `{ project, session, lineNumber, raw }` envelopes.
+Sessions are discovered from `transcripts/`. Two producer formats exist:
+
+- **Legacy** — transcript has `user.message` / `assistant.message` events; user
+  turns are supplemented from the sibling `chatSessions/<id>.jsonl` (which includes
+  the opening prompt the transcript drops).
+- **Newer copilot-agent format** — transcript contains only `session.start`; the
+  full conversation (user prompts + assistant responses) lives in `chatSessions`,
+  sourced from `kind:2` request appends and `kind:1` result patches
+  (`result.metadata.toolCallRounds`).
+
+Both flows merge into the same normalized message contract and sort chronologically.
+See the [detail page](session-storage.md) for the field-by-field breakdown. Logs
+stream transcript events as raw `{ project, session, lineNumber, raw }` envelopes.
+
+All turns are **flattened**: text → `{ role: 'assistant' }`, tool calls →
+`{ role: 'tool_use' }`, user prompts → `{ role: 'user' }`.
+
+**Timeline richness** is limited by what VS Code stores in the transcript files. The following event types are **not stored on disk** and absent from the timeline:
+
+- `tool_result` — tool outputs are not persisted (only the calls are)
+- `thinking` — not supported
+- `system_attachment` — no hook system
+- `local_command` — no slash-command protocol
+- `system` — no system-notice events in the transcript format
+
+Token counts are also not stored per-message (only aggregate totals exist in `state.vscdb` as SQLite, which is out of scope under the Node-core-only constraint). The result is the sparsest timeline of the three providers: `user`, `assistant`, and `tool_use` events only.
 
 ### Stats — `ghcopilot-vscode-stats.js`
 Streams transcripts and counts sessions, messages (`user.message` +

@@ -61,13 +61,32 @@ Example: `/home/sam/Projects/tamagotchi` → `home-sam-Projects-tamagotchi`.
 Each line is one message (no timestamps):
 
 ```json
-{"role":"user","message":{"content":[{"type":"text","text":"<user_query>\nHello\n</user_query>"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>…</timestamp>\n<user_query>\nHello\n</user_query>"}]}}
 {"role":"assistant","message":{"content":[{"type":"text","text":"..."},{"type":"tool_use","name":"Shell","input":{...}}]}}
 ```
 
-Content blocks follow the Anthropic message shape (`type: "text"`, `type: "tool_use"`, `type: "tool_result"`). Cursor wraps user queries in `<user_query>` XML tags — these are stripped when building the session preview.
+Only two `role` values exist: `user` and `assistant`. Content blocks follow the Anthropic message shape (`type: "text"`, `type: "tool_use"`).
+
+**Cursor-injected XML wrappers** appear in every user message. The reader strips them before the data reaches the API:
+
+| Tag | Handling |
+|-----|----------|
+| `<user_query>` | inner text extracted as the canonical user message |
+| `<system_reminder>` | extracted and emitted as a separate `{ role: 'system' }` event before the user turn |
+| `<timestamp>`, `<user_info>`, `<attached_files>`, `<git_status>`, … | stripped entirely |
 
 **Timestamps are not stored** in the JSONL. The provider uses the file's `mtime` as the session timestamp.
+
+## Timeline richness
+
+Cursor agent transcripts only record conversation turns and tool calls. The following event types are **not stored on disk** and therefore absent from the message timeline:
+
+- `tool_result` — tool outputs are not persisted
+- `thinking` — no extended thinking support
+- `system_attachment` — no hook system
+- `local_command` — no slash-command protocol
+
+This is a data-availability constraint, not a reader limitation. The resulting timeline shows `user`, `assistant`, `tool_use`, and `system` (from `<system_reminder>`) events only — a sparser view than Claude Code, which logs all of the above.
 
 ## Feature sourcing
 
@@ -75,7 +94,7 @@ Content blocks follow the Anthropic message shape (`type: "text"`, `type: "tool_
 |---------|--------|-------|
 | Projects | `~/.cursor/projects/` directory listing | Slugs decoded via workspaceStorage cross-reference |
 | Sessions | `agent-transcripts/{uuid}/{uuid}.jsonl` | One file per agent run |
-| Messages | Same JSONL, streamed line by line | No per-message timestamps |
+| Messages | Same JSONL, streamed line by line | Flattened to normalized event contract; XML wrappers stripped; no per-message timestamps |
 | Stats | Derived from transcript JSONL | No token counts (not in JSONL) |
 | Skills | `skills-cursor/{name}/SKILL.md` + `~/.agents/skills/{name}/SKILL.md` | Cursor-specific first; global deduped by slug |
 | Agents | `~/.claude/agents/*.md` + `plugins/{cache,local}/**/agents/*.md` | Global Claude agents + plugin-bundled agents |

@@ -1,15 +1,13 @@
-import type { ConversationSummary, Block, Message, AttachmentContent } from './types';
+import type { ConversationSummary, Message, AttachmentContent } from './types';
 import { formatDuration } from './utils';
 
 export function extractMessageText(msg: Message): string {
-  if (typeof msg.content === 'string') return msg.content;
-  if (Array.isArray(msg.content)) {
-    return (msg.content as Block[])
-      .map(b => [b.text, b.thinking, typeof b.content === 'string' ? b.content : ''].filter(Boolean).join(' '))
-      .join(' ');
+  if (msg.role === 'tool_use') return `${msg.name ?? ''}: ${JSON.stringify(msg.input ?? {})}`;
+  if (msg.role === 'system_attachment') {
+    const att = msg.content as AttachmentContent;
+    return [att?.command, att?.stdout, att?.content, att?.stderr].filter(Boolean).join(' ');
   }
-  const att = msg.content as AttachmentContent;
-  return [att.command, att.stdout, att.content, att.stderr].filter(Boolean).join(' ');
+  return typeof msg.content === 'string' ? msg.content : '';
 }
 
 export function getSessionDuration(conv: ConversationSummary): string | null {
@@ -22,21 +20,12 @@ export function exportSession(conv: ConversationSummary, messages: Message[], as
   [...messages].reverse().forEach(msg => {
     if (msg.role === 'user') {
       lines.push('\n\n**User**\n\n');
-      const c = msg.content;
-      if (typeof c === 'string') lines.push(c);
-      else if (Array.isArray(c)) {
-        (c as Block[]).forEach(b => { if (b.type === 'text' && b.text) lines.push(b.text); });
-      }
+      if (typeof msg.content === 'string') lines.push(msg.content);
     } else if (msg.role === 'assistant') {
       lines.push(`\n\n**${assistantLabel}**\n\n`);
-      const c = msg.content;
-      if (typeof c === 'string') lines.push(c);
-      else if (Array.isArray(c)) {
-        (c as Block[]).forEach(b => {
-          if (b.type === 'text' && b.text) lines.push(b.text);
-          else if (b.type === 'tool_use') lines.push(`\n*Tool: ${b.name}*\n`);
-        });
-      }
+      if (typeof msg.content === 'string') lines.push(msg.content);
+    } else if (msg.role === 'tool_use') {
+      lines.push(`\n*Tool: ${msg.name ?? ''}*\n`);
     }
   });
   const blob = new Blob([lines.join('')], { type: 'text/markdown' });

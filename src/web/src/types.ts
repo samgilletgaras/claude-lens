@@ -20,18 +20,6 @@ export interface ProviderInfo {
   vscodeInsidersDetected?: boolean;
 }
 
-export interface Block {
-  type: string;
-  text?: string;
-  thinking?: string;
-  id?: string;
-  name?: string;
-  input?: Record<string, unknown>;
-  tool_use_id?: string;
-  content?: unknown;
-  is_error?: boolean;
-}
-
 export interface AttachmentContent {
   type?: string;
   hookName?: string;
@@ -44,10 +32,40 @@ export interface AttachmentContent {
   durationMs?: number;
 }
 
+/**
+ * Normalized message event emitted by every provider's getMessages().
+ * Each entry represents exactly one event — no bundled Block arrays.
+ *
+ * role          content / extra fields
+ * ──────────    ──────────────────────
+ * user          content: string
+ * assistant     content: string
+ * thinking      content: string           (Claude only)
+ * tool_use      name, input, id?          (all providers)
+ * tool_result   content, is_error?,
+ *               tool_use_id?              (Claude + demo)
+ * system        content: string
+ * system_attachment  content: AttachmentContent  (Claude only)
+ * local_command name, caveat?             (Claude slash commands)
+ */
 export interface Message {
-  role: 'user' | 'assistant' | 'system_attachment' | 'system';
-  content: string | Block[] | AttachmentContent;
-  timestamp: number;
+  role: 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result'
+      | 'system' | 'system_attachment' | 'local_command';
+  /** Text payload for user / assistant / thinking / tool_result / system */
+  content?: string | AttachmentContent;
+  /** tool_use, local_command */
+  name?: string;
+  /** tool_use */
+  input?: Record<string, unknown>;
+  /** tool_use */
+  id?: string;
+  /** tool_result */
+  tool_use_id?: string;
+  /** tool_result */
+  is_error?: boolean;
+  /** local_command — the <local-command-caveat> text */
+  caveat?: string;
+  timestamp: number | null;
 }
 
 export interface ProjectSummary {

@@ -15,13 +15,16 @@ truth — read it before changing code.** Don't duplicate that detail here:
 
 - [`docs/README.md`](docs/README.md) — full architecture: backend/frontend split,
   the registry-hub + self-registration pattern, the `all` meta-provider, all 12
-  endpoints, demo mode, provider dispatch, the add-a-provider checklist, and the
-  data-sourcing rules.
+  endpoints, the normalized message contract, demo mode, provider dispatch, the
+  add-a-provider checklist, and the data-sourcing rules.
 - [`docs/claude/README.md`](docs/claude/README.md) — Claude Code's `~/.claude/`
-  layout and where each feature's data comes from.
+  layout, the session JSONL envelope, and where each feature's data comes from.
+- [`docs/cursor/README.md`](docs/cursor/README.md) — Cursor's `~/.cursor/` layout,
+  agent-transcript JSONL format, the XML wrapper stripping, and timeline richness
+  limitations.
 - [`docs/ghcopilot-vscode/`](docs/ghcopilot-vscode/README.md) — VS Code storage
-  layout and the `transcripts` ⇄ `chatSessions` merge (why the opening prompt is
-  recovered from `chatSessions`).
+  layout, the `transcripts` ⇄ `chatSessions` merge (why the opening prompt is
+  recovered from `chatSessions`), and timeline richness limitations.
 
 ## Commands
 
@@ -55,6 +58,13 @@ These govern every change. The full rationale is in `docs/README.md`.
   `capabilities.*` flags or data shape. Adding a provider must require **zero**
   frontend rendering changes. (Permitted exceptions: `apiUrl`/`slugify`, the
   `PROVIDER_MIGRATIONS` map, `index.css` badge tokens, and `SettingsViewer`.)
+- **`getMessages()` must emit the normalized flat event contract.** Every provider's
+  reader must flatten its on-disk format into typed role events (`user`, `assistant`,
+  `tool_use`, `tool_result`, `thinking`, `system`, `system_attachment`,
+  `local_command`) before returning. No `Block[]` arrays, no bundled multi-block
+  messages, no provider-specific XML tags. All parsing lives in the reader.
+  `MessageBubble` maps `role → display style` only. See `docs/README.md` for the
+  full contract table.
 - **Backend provider isolation.** Each `readers/<id>/` directory touches only its
   own ecosystem's files. Cursor ≠ GitHub Copilot — a new editor gets a new provider.
 - **Local files only, no remote, ever.** Read off disk; never call an API,

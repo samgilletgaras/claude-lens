@@ -114,6 +114,25 @@ default off), toggled in Settings.
 | `GET /api/stats[?project=]` | aggregate or per-project token/tool/activity stats |
 | `GET /api/plans[?file=]` | plan markdown files (provider-agnostic) |
 
+### Normalized message contract
+
+`/api/messages` returns a **flat array of typed event objects** — no bundled block arrays. Every provider's `getMessages()` must flatten its on-disk format into this shape before returning:
+
+| `role` | Extra fields | Who emits |
+|--------|-------------|-----------|
+| `user` | `content: string` | all |
+| `assistant` | `content: string` | all |
+| `tool_use` | `name, input, id?` | all |
+| `tool_result` | `content, is_error?, tool_use_id?` | Claude + demo |
+| `thinking` | `content: string` | Claude |
+| `system` | `content: string` | Claude, Cursor (`<system_reminder>`) |
+| `system_attachment` | `content: AttachmentContent` | Claude |
+| `local_command` | `name, caveat?` | Claude slash commands |
+
+All parsing logic (block flattening, XML tag extraction, vendor-specific envelope unwrapping) lives in the backend reader. The frontend `MessageBubble` component maps `role` to display style only — it never inspects content structure.
+
+**Timeline richness varies by provider** — this is a data-availability constraint, not a code issue. Claude Code logs tool results, thinking blocks, hook events, and system notices; Cursor and GitHub Copilot transcripts only store the conversation turns and tool calls. See each provider's doc for details.
+
 ### Frontend — `src/web` (React + Vite + Tailwind v4)
 
 - Hash routing: `#/history/projectId/sessionId`.
@@ -123,6 +142,8 @@ default off), toggled in Settings.
   and by data shape. Adding a provider requires **zero** frontend changes.
 - All fetches go through `apiUrl(path, demoMode)`, which appends `?provider=X`
   (from `localStorage`) and `?demo=true` when demo mode is on.
+- `MessageBubble` is a pure `role → renderer` switch: each `role` value maps to a
+  fixed icon, dot color, and text color. No block-type routing, no provider checks.
 
 ### Adding a provider (the whole checklist)
 

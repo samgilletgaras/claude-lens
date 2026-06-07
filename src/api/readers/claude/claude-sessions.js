@@ -71,6 +71,85 @@ async function getSessions(project, page, pageSize) {
   return { data: sessions.slice(page * pageSize, (page + 1) * pageSize), total: sessions.length };
 }
 
+// ─── Block flattening helpers ─────────────────────────────────────────────────
+
+// Flatten a user message's content (string or Block[]) into normalized events.
+function flattenUserContent(content, ts, out) {
+  if (typeof content === 'string') {
+    // May contain Claude slash-command XML tags
+    pushUserText(content, ts, out);
+    return;
+  }
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    if (!block) continue;
+    if (block.type === 'tool_result') {
+      const text = typeof block.content === 'string'
+        ? block.content
+        : (Array.isArray(block.content)
+            ? block.content.map(b => b?.text ?? '').filter(Boolean).join('\n')
+            : '');
+      out.push({ role: 'tool_result', content: text, is_error: block.is_error ?? false, tool_use_id: block.tool_use_id, timestamp: ts });
+    } else if (block.type === 'text' && block.text) {
+      pushUserText(block.text, ts, out);
+    }
+  }
+}
+
+// Parse slash-command XML tags out of a user text block.
+// Emits a local_command event and/or a clean user text event.
+function pushUserText(text, ts, out) {
+  if (!text) return;
+
+  // Extract <local-command-caveat>
+  let caveat = null;
+  const caveatRe = /<local-command-caveat>([\s\S]*?)<\/local-command-caveat>/g;
+  const caveatMatches = [...text.matchAll(caveatRe)];
+  if (caveatMatches.length) {
+    caveat = caveatMatches.map(m => m[1].trim()).join('\n');
+    text = text.replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, '').trim();
+  }
+
+  // Strip <command-args>
+  text = text.replace(/<command-args>[\s\S]*?<\/command-args>/g, '').trim();
+
+  // Extract <command-message> (fallback name)
+  let cmdMsg = null;
+  const cmdMsgRe = /<command-message>([\s\S]*?)<\/command-message>/g;
+  const cmdMsgMatches = [...text.matchAll(cmdMsgRe)];
+  if (cmdMsgMatches.length) {
+    cmdMsg = cmdMsgMatches.map(m => m[1].trim()).join(', ');
+    text = text.replace(/<command-message>[\s\S]*?<\/command-message>/g, '').trim();
+  }
+
+  // Extract <command-name>
+  const cmdNameMatch = text.match(/<command-name>(.*?)<\/command-name>/);
+  let cmdName = cmdNameMatch ? cmdNameMatch[1] : (cmdMsg || null);
+  if (cmdNameMatch) text = text.replace(/<command-name>.*?<\/command-name>/, '').trim();
+
+  if (cmdName) out.push({ role: 'local_command', name: cmdName, caveat: caveat ?? undefined, timestamp: ts });
+  if (text) out.push({ role: 'user', content: text, timestamp: ts });
+}
+
+// Flatten an assistant message's content (string or Block[]) into normalized events.
+function flattenAssistantContent(content, ts, out) {
+  if (typeof content === 'string') {
+    if (content.trim()) out.push({ role: 'assistant', content, timestamp: ts });
+    return;
+  }
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    if (!block) continue;
+    if (block.type === 'thinking' && block.thinking) {
+      out.push({ role: 'thinking', content: block.thinking, timestamp: ts });
+    } else if (block.type === 'text' && block.text?.trim()) {
+      out.push({ role: 'assistant', content: block.text, timestamp: ts });
+    } else if (block.type === 'tool_use') {
+      out.push({ role: 'tool_use', name: block.name, input: block.input ?? {}, id: block.id, timestamp: ts });
+    }
+  }
+}
+
 async function getMessages(project, sessionId) {
   const filePath = path.join(PROJECTS_DIR, project, `${sessionId}.jsonl`);
   if (!isWithin(PROJECTS_DIR, filePath)) return [];
@@ -84,11 +163,11 @@ async function getMessages(project, sessionId) {
     if (!line.trim()) continue;
     try {
       const p = JSON.parse(line);
-      const ts = new Date(p.timestamp).getTime();
-      if (p.type === 'user') messages.push({ role: 'user', content: p.message.content, timestamp: ts || 0 });
-      else if (p.type === 'assistant') messages.push({ role: 'assistant', content: p.message.content, timestamp: ts || 0 });
-      else if (p.type === 'attachment') messages.push({ role: 'system_attachment', content: p.attachment, timestamp: ts || 0 });
-      else if (p.type === 'system') messages.push({ role: 'system', content: p.content, timestamp: ts || 0 });
+      const ts = new Date(p.timestamp).getTime() || 0;
+      if (p.type === 'user') flattenUserContent(p.message?.content, ts, messages);
+      else if (p.type === 'assistant') flattenAssistantContent(p.message?.content, ts, messages);
+      else if (p.type === 'attachment') messages.push({ role: 'system_attachment', content: p.attachment, timestamp: ts });
+      else if (p.type === 'system') messages.push({ role: 'system', content: p.content ?? '', timestamp: ts });
     } catch { /* skip */ }
   }
   _messageCache[key] = { mtime, messages };
