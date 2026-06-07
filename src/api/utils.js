@@ -34,6 +34,14 @@ export function isTmp(name) {
   return name === 'tmp' || name.endsWith('-tmp') || name.includes('tmp');
 }
 
+// Guard against path traversal: returns true only when `target` resolves to a
+// location inside `root`. Used before reading any path built from a request
+// param (project/session/file) so `?project=../../..` can't escape the root.
+export function isWithin(root, target) {
+  const rel = path.relative(path.resolve(root), path.resolve(target));
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
 export function parseFrontmatter(content) {
   const lines = content.split('\n');
   if (!lines[0] || lines[0].trim() !== '---') return { meta: {}, body: content };

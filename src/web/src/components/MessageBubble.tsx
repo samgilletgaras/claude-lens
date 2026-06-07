@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Message, Block, AttachmentContent } from '../types';
@@ -62,8 +62,14 @@ function PipelineEvent({ icon: Icon, dotColor, textColor, title, content, isComm
   const [expanded, setExpanded] = useState(false);
   const hasContent = !!content;
 
-  useEffect(() => { setExpanded(false); }, [collapseSignal]);
-  
+  // Collapse-all: when the parent bumps collapseSignal, reset during render
+  // (React's "adjust state on prop change" idiom) rather than in an effect.
+  const [prevSignal, setPrevSignal] = useState(collapseSignal);
+  if (collapseSignal !== prevSignal) {
+    setPrevSignal(collapseSignal);
+    setExpanded(false);
+  }
+
   return (
     <div className="relative flex w-full mb-2 group items-start">
       <div className="absolute left-[7px] top-0 bottom-0 w-px bg-lens-border/40" />

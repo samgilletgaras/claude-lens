@@ -95,18 +95,22 @@ export function MemoryViewer({ demoMode }: { demoMode?: boolean }) {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
+    let ignore = false;
     fetch(apiUrl('/api/memory', !!demoMode))
       .then(res => res.json())
       .then(res => {
+        if (ignore) return;
         if (res.error) throw new Error(res.error);
         setEntries(res.data || []);
         setLoading(false);
       })
       .catch(err => {
+        if (ignore) return;
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+    return () => { ignore = true; };
+  }, [demoMode]);
 
   function openEntry(entry: MemoryEntry) {
     setSelected(entry);

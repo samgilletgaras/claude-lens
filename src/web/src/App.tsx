@@ -237,24 +237,30 @@ function App() {
     onHashChange();
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch messages when a session is selected
   useEffect(() => {
+    let ignore = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale messages when no session is selected
     if (!activeProjectId || !activeSessionId) { setActiveMessages([]); return; }
     setMessagesLoading(true);
     fetch(apiUrl(`/api/messages?project=${encodeURIComponent(activeProjectId)}&session=${encodeURIComponent(activeSessionId)}`, demoMode))
       .then(r => r.json())
-      .then(r => setActiveMessages(r.data || []))
-      .catch(() => setActiveMessages([]))
-      .finally(() => setMessagesLoading(false));
+      .then(r => { if (!ignore) setActiveMessages(r.data || []); })
+      .catch(() => { if (!ignore) setActiveMessages([]); })
+      .finally(() => { if (!ignore) setMessagesLoading(false); });
+    return () => { ignore = true; };
   }, [activeProjectId, activeSessionId, refreshKey, demoMode]);
 
-  // Clear search when switching sessions
-  useEffect(() => {
+  // Clear search when switching sessions — reset during render (React's
+  // "adjust state on prop/value change" idiom) rather than in an effect.
+  const [prevSearchSession, setPrevSearchSession] = useState(activeSessionId);
+  if (activeSessionId !== prevSearchSession) {
+    setPrevSearchSession(activeSessionId);
     setSessionSearch('');
     setSessionMatchIdx(0);
-  }, [activeSessionId]);
+  }
 
   const currentKey = activeProjectId ? `${activeProjectId}:${sessionsPage}` : null;
   const sessionsLoading = currentKey !== null && loadedKey !== currentKey;

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
-import { PROJECTS_DIR, CACHE_TTL, MODEL_PRICING, isTmp } from '../../utils.js';
+import { PROJECTS_DIR, CACHE_TTL, MODEL_PRICING, isTmp, isWithin } from '../../utils.js';
 import { register } from '../stats.js';
 
 let _statsCache = null, _statsCacheTs = 0;
@@ -79,6 +79,7 @@ async function globalStats() {
 
 async function projectStats(project) {
   const pPath = path.join(PROJECTS_DIR, project);
+  if (!isWithin(PROJECTS_DIR, pPath)) return null;
   if (!fs.existsSync(pPath) || !fs.statSync(pPath).isDirectory()) return null;
   let files; try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); } catch { return null; }
 

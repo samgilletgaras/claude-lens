@@ -44,20 +44,26 @@ export function LogsViewer({ demoMode }: { demoMode?: boolean }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
+    /* eslint-disable react-hooks/set-state-in-effect -- reset to loading state before async fetch */
     setLoading(true);
     setError(null);
     setStats(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
     fetch(apiUrl('/api/stats', demoMode ?? false))
       .then(res => res.json())
       .then(res => {
+        if (ignore) return;
         if (res.error) throw new Error(res.error);
         setStats(res.data);
         setLoading(false);
       })
       .catch(err => {
+        if (ignore) return;
         setError(err.message);
         setLoading(false);
       });
+    return () => { ignore = true; };
   }, [demoMode]);
 
   if (loading) {

@@ -15,18 +15,22 @@ export function PlansViewer({ demoMode }: { demoMode?: boolean }) {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
+    let ignore = false;
     fetch(demoMode ? '/api/plans?demo=true' : '/api/plans')
       .then(res => res.json())
       .then(res => {
+        if (ignore) return;
         if (res.error) throw new Error(res.error);
         setPlans(res.data || []);
         setLoading(false);
       })
       .catch(err => {
+        if (ignore) return;
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+    return () => { ignore = true; };
+  }, [demoMode]);
 
   function openPlan(plan: Plan) {
     setSelected(plan);

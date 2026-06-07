@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
-import { PROJECTS_DIR, isTmp } from '../../utils.js';
+import { PROJECTS_DIR, isTmp, isWithin } from '../../utils.js';
 import { register } from '../sessions.js';
 
 const _sessionCache = {};
@@ -26,6 +26,7 @@ async function getProjects() {
 
 async function getSessions(project, page, pageSize) {
   const pPath = path.join(PROJECTS_DIR, project);
+  if (!isWithin(PROJECTS_DIR, pPath)) return { data: [], total: 0 };
   if (!fs.existsSync(pPath) || !fs.statSync(pPath).isDirectory()) return { data: [], total: 0 };
   let files;
   try { files = fs.readdirSync(pPath).filter(f => f.endsWith('.jsonl')); }
@@ -72,6 +73,7 @@ async function getSessions(project, page, pageSize) {
 
 async function getMessages(project, sessionId) {
   const filePath = path.join(PROJECTS_DIR, project, `${sessionId}.jsonl`);
+  if (!isWithin(PROJECTS_DIR, filePath)) return [];
   if (!fs.existsSync(filePath)) return [];
   const mtime = fs.statSync(filePath).mtimeMs;
   const key = `${project}/${sessionId}`;
