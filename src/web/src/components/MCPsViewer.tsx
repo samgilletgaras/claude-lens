@@ -42,7 +42,7 @@ export function MCPsViewer({ demoMode, providers = [], showSourcePaths = true }:
     setSelected(server);
     setDetail(null);
     setDetailLoading(true);
-    fetch(apiUrl(`/api/mcps?server=${encodeURIComponent(server.id)}${server.provider ? `&from=${encodeURIComponent(server.provider)}` : ''}`, demoMode ?? false))
+    fetch(apiUrl(`/api/mcps?server=${encodeURIComponent(server.id)}${server.providers?.[0] ? `&from=${encodeURIComponent(server.providers[0])}` : ''}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         setDetail(res.data ?? null);
@@ -71,7 +71,7 @@ export function MCPsViewer({ demoMode, providers = [], showSourcePaths = true }:
           <div className="flex items-center gap-3 mb-1 flex-wrap">
             <h1 className="text-2xl font-semibold text-lens-text">{selected.name}</h1>
             <TypeBadge type={selected.type} />
-            {selected.provider && <ProviderBadge id={selected.provider} providers={providers} />}
+            {selected.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
             {selected.auth?.authenticated && (
               <span className="flex items-center gap-1 text-[10px] text-emerald-400">
                 <CheckCircle className="w-3 h-3" /> Authenticated
@@ -201,7 +201,7 @@ export function MCPsViewer({ demoMode, providers = [], showSourcePaths = true }:
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-medium text-lens-text">{server.name}</span>
                   <TypeBadge type={server.type} />
-                  {server.provider && <ProviderBadge id={server.provider} providers={providers} />}
+                  {server.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
                 </div>
                 <div className="font-mono text-[10px] text-lens-text-faint mb-2">{server.id}</div>
                 <div className="mt-auto flex items-center justify-between text-xs text-lens-text-dim">

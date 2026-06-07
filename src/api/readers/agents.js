@@ -1,4 +1,4 @@
-import { ALL_PROVIDER } from '../utils.js';
+import { ALL_PROVIDER, dedupeBySourcePath } from '../utils.js';
 
 const registry = new Map();
 
@@ -10,9 +10,9 @@ export async function getAgents(provider) {
   if (provider === ALL_PROVIDER) {
     const out = [];
     for (const [id, impl] of registry) {
-      try { for (const a of await impl.getAgents()) out.push({ ...a, provider: id }); } catch { /* skip */ }
+      try { for (const a of await impl.getAgents()) out.push({ ...a, providers: [id] }); } catch { /* skip */ }
     }
-    return out;
+    return dedupeBySourcePath(out);
   }
   return resolve(provider)?.getAgents() ?? Promise.resolve([]);
 }

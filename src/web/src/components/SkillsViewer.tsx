@@ -49,7 +49,7 @@ export function SkillsViewer({ demoMode, providers = [], showSourcePaths = true 
     setSkillDetail(null);
     if (!skill.hasSkillMd) return;
     setContentLoading(true);
-    fetch(apiUrl(`/api/skills?slug=${encodeURIComponent(skill.slug)}${skill.provider ? `&from=${encodeURIComponent(skill.provider)}` : ''}`, demoMode ?? false))
+    fetch(apiUrl(`/api/skills?slug=${encodeURIComponent(skill.slug)}${skill.providers?.[0] ? `&from=${encodeURIComponent(skill.providers[0])}` : ''}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {
         setSkillDetail(res.data ?? null);
@@ -79,7 +79,7 @@ export function SkillsViewer({ demoMode, providers = [], showSourcePaths = true 
 
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-2xl font-semibold text-lens-text">{selectedSkill.name}</h1>
-            {selectedSkill.provider && <ProviderBadge id={selectedSkill.provider} providers={providers} />}
+            {selectedSkill.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
           </div>
           <div className="font-mono text-[11px] text-lens-text-faint mb-6">{selectedSkill.slug}</div>
 
@@ -206,7 +206,7 @@ export function SkillsViewer({ demoMode, providers = [], showSourcePaths = true 
                       <Zap className="w-2.5 h-2.5" />{skill.trigger}
                     </span>
                   )}
-                  {skill.provider && <ProviderBadge id={skill.provider} providers={providers} />}
+                  {skill.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
                 </div>
                 <div className="font-mono text-[10px] text-lens-text-faint mb-2">{skill.slug}</div>
                 {skill.description ? (

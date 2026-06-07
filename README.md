@@ -1,6 +1,6 @@
 # AI Lens
 
-A local web app to browse your AI coding-assistant session history — [Claude Code](https://claude.ai/code) and [GitHub Copilot](https://github.com/features/copilot) (in VS Code), side by side.
+A local web app to browse your AI coding-assistant session history — [Claude Code](https://claude.ai/code) and [GitHub Copilot](https://github.com/features/copilot) (in VS Code), side by side (More to come).
 
 > **Heads up:** This started as a quick vibe-coded tool — I just wanted to see my JSONL Claude Code session history in a readable way so I could understand exactly what was happening behind the scenes when using my agents and skills and find ways to optimise them. It grew way beyond that. A proper refactor is on my todo list... In the meantime, it can maybe help you too !
 

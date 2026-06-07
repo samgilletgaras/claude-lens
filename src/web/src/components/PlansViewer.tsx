@@ -37,7 +37,7 @@ export function PlansViewer({ demoMode, providers = [], showSourcePaths = true }
     setSelected(plan);
     setDetail(null);
     setDetailLoading(true);
-    fetch(apiUrl(`/api/plans?file=${encodeURIComponent(plan.filename)}${plan.provider ? `&from=${encodeURIComponent(plan.provider)}` : ''}`, !!demoMode))
+    fetch(apiUrl(`/api/plans?file=${encodeURIComponent(plan.filename)}${plan.providers?.[0] ? `&from=${encodeURIComponent(plan.providers[0])}` : ''}`, !!demoMode))
       .then(res => res.json())
       .then(res => {
         setDetail((res.data as PlanDetail[])?.[0] ?? null);
@@ -62,7 +62,7 @@ export function PlansViewer({ demoMode, providers = [], showSourcePaths = true }
 
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-2xl font-semibold text-lens-text">{selected.title}</h1>
-            {selected.provider && <ProviderBadge id={selected.provider} providers={providers} />}
+            {selected.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
           </div>
           <div className="font-mono text-[11px] text-lens-text-faint mb-1">
             {selected.filename} · {formatRelative(selected.mtime)}
@@ -147,7 +147,7 @@ export function PlansViewer({ demoMode, providers = [], showSourcePaths = true }
               >
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-medium text-lens-text">{plan.title}</span>
-                  {plan.provider && <ProviderBadge id={plan.provider} providers={providers} />}
+                  {plan.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
                 </div>
                 <div className="font-mono text-[10px] text-lens-text-faint mb-2">{plan.filename}</div>
                 {plan.snippet ? (

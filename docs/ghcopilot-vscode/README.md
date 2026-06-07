@@ -27,7 +27,10 @@ variant's **User** directory. The two anchors are:
 - **`User/`** itself and **`User/globalStorage/`** — user-global data: custom +
   built-in agents, global MCP config, global memory.
 
-Skills are the exception — they live outside VS Code at `~/.copilot/skills/`.
+Skills are the exception — they live outside VS Code, following the
+[agentskills.io](https://agentskills.io) open standard: personal skills at
+`~/.copilot/skills/` and `~/.agents/skills/`, workspace skills at
+`.github/skills/`, `.agents/skills/`, or `.claude/skills/` inside each project.
 
 ---
 
@@ -109,9 +112,22 @@ exist in `state.vscdb` as SQLite, which is out of scope under the Node-core-only
 constraint). Hook fields are also reported empty.
 
 ### Skills — `ghcopilot-vscode-skills.js`
-Reads `~/.copilot/skills/<slug>/SKILL.md` (the GitHub Copilot CLI's skills dir,
-**not** inside VS Code). Description/trigger from frontmatter (or first non-heading
-line). No usage scan (`totalCalls: 0`).
+Follows the [agentskills.io](https://agentskills.io) open standard that VS Code
+Copilot implements. Two scopes are merged, deduped by slug (first found wins):
+
+**Personal skills** (checked in order):
+- `~/.copilot/skills/<slug>/SKILL.md` — Copilot-specific personal skills
+- `~/.agents/skills/<slug>/SKILL.md` — open-standard personal skills
+
+`~/.claude/skills/` is deliberately skipped — the Claude provider owns that tree.
+
+**Workspace skills** (per project discovered by `scanWorkspaces()`):
+- `<projectRoot>/.github/skills/<slug>/SKILL.md`
+- `<projectRoot>/.agents/skills/<slug>/SKILL.md`
+- `<projectRoot>/.claude/skills/<slug>/SKILL.md`
+
+Description/trigger come from YAML frontmatter (or first non-heading body line).
+No usage scan (`totalCalls: 0`).
 
 ### Agents — `ghcopilot-vscode-agents.js`
 Across every VS Code variant's `User/` dir: user custom agents from

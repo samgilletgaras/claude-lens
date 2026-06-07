@@ -20,7 +20,7 @@ export async function getMcps(provider, id = null, from = null) {
     }
     const out = [];
     for (const [pid, impl] of registry) {
-      try { for (const m of await impl.getMcps(null)) out.push({ ...m, provider: pid }); } catch { /* skip */ }
+      try { for (const m of await impl.getMcps(null)) out.push({ ...m, providers: [pid] }); } catch { /* skip */ }
     }
     return out;
   }

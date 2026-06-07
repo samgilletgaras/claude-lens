@@ -52,7 +52,7 @@ function ProjectGroups({ entries, onOpen, providers }: { entries: MemoryEntry[];
             >
               <ChevronRight className={`w-3.5 h-3.5 text-lens-text-faint transition-transform shrink-0 ${isOpen ? 'rotate-90' : ''}`} />
               <span className="text-sm font-medium text-lens-text-sub group-hover:text-lens-text transition-colors">{prettifyProjectName(project)}</span>
-              {items[0]?.provider && <ProviderBadge id={items[0].provider} providers={providers} />}
+              {items[0]?.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
               <span className="text-[10px] text-lens-text-faint">{items.length}</span>
               <div className="flex-1 h-px bg-lens-border/60" />
             </button>
@@ -146,7 +146,7 @@ export function MemoryViewer({ demoMode, providers = [], showSourcePaths = true 
           <div className="flex items-center gap-3 mb-1 flex-wrap">
             <h1 className="text-2xl font-semibold text-lens-text">{selected.name}</h1>
             <TypeBadge type={selected.type} />
-            {selected.provider && <ProviderBadge id={selected.provider} providers={providers} />}
+            {selected.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
           </div>
           <div className="font-mono text-[11px] text-lens-text-faint mb-1">
             {prettifyProjectName(selected.project)} · {selected.filename}

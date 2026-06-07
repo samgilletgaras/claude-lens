@@ -88,7 +88,7 @@ export interface Skill {
   totalCalls: number;
   lastUsed: number | null;
   sourcePath?: string;
-  provider?: string; // source provider id, set only under the "All Providers" view
+  providers?: string[]; // source provider ids, set only under the "All Providers" view
 }
 
 export interface SkillDetail {
@@ -117,7 +117,7 @@ export interface MCPServer {
   lastUsed: number | null;
   auth?: { authenticated: boolean; timestamp: number };
   source?: string;
-  provider?: string; // source provider id, set only under the "All Providers" view
+  providers?: string[]; // source provider ids, set only under the "All Providers" view
 }
 
 export interface MCPTool {
@@ -138,7 +138,7 @@ export interface MemoryEntry {
   type: 'user' | 'feedback' | 'project' | 'reference' | null;
   snippet: string | null;
   sourcePath?: string;
-  provider?: string; // source provider id, set only under the "All Providers" view
+  providers?: string[]; // source provider ids, set only under the "All Providers" view
 }
 
 export interface MemoryEntryDetail extends MemoryEntry {
@@ -152,7 +152,7 @@ export interface Plan {
   snippet: string | null;
   mtime: number;
   sourcePath?: string;
-  provider?: string; // source provider id, set only under the "All Providers" view
+  providers?: string[]; // source provider ids, set only under the "All Providers" view
 }
 
 export interface PlanDetail extends Plan {

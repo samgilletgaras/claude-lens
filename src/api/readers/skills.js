@@ -1,4 +1,4 @@
-import { ALL_PROVIDER } from '../utils.js';
+import { ALL_PROVIDER, dedupeBySourcePath } from '../utils.js';
 
 const registry = new Map();
 
@@ -10,9 +10,9 @@ export async function getSkills(provider) {
   if (provider === ALL_PROVIDER) {
     const out = [];
     for (const [id, impl] of registry) {
-      try { for (const s of await impl.getSkills()) out.push({ ...s, provider: id }); } catch { /* skip */ }
+      try { for (const s of await impl.getSkills()) out.push({ ...s, providers: [id] }); } catch { /* skip */ }
     }
-    return out;
+    return dedupeBySourcePath(out);
   }
   return resolve(provider)?.getSkills() ?? Promise.resolve([]);
 }

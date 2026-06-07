@@ -1,7 +1,7 @@
 // Pure registry — no knowledge of any specific provider.
 // Each provider registers its implementation on import.
 
-import { ALL_PROVIDER } from '../utils.js';
+import { ALL_PROVIDER, dedupeBySourcePath } from '../utils.js';
 
 const registry = new Map();
 
@@ -23,10 +23,11 @@ export async function getPlans(provider, filename = null, from = null) {
     }
     const out = [];
     for (const [id, impl] of registry) {
-      try { for (const p of await impl.getPlans(null)) out.push({ ...p, provider: id }); } catch { /* skip */ }
+      try { for (const p of await impl.getPlans(null)) out.push({ ...p, providers: [id] }); } catch { /* skip */ }
     }
-    out.sort((a, b) => b.mtime - a.mtime);
-    return out;
+    const deduped = dedupeBySourcePath(out);
+    deduped.sort((a, b) => b.mtime - a.mtime);
+    return deduped;
   }
   return resolve(provider)?.getPlans(filename) ?? Promise.resolve([]);
 }

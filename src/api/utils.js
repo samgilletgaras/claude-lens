@@ -114,3 +114,21 @@ export function parseQuery(url) {
     get: (k, def) => u.searchParams.get(k) ?? def,
   };
 }
+
+// Dedup items in an "all" aggregation by sourcePath. Items sharing the same
+// sourcePath are merged: providers arrays are concatenated, other fields kept
+// from the first occurrence. Items without a sourcePath are never merged.
+export function dedupeBySourcePath(items) {
+  const idx = new Map();
+  const out = [];
+  for (const item of items) {
+    const key = item.sourcePath;
+    if (key && idx.has(key)) {
+      out[idx.get(key)].providers.push(...item.providers);
+    } else {
+      const i = out.push({ ...item }) - 1;
+      if (key) idx.set(key, i);
+    }
+  }
+  return out;
+}

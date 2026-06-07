@@ -34,7 +34,7 @@ export function AgentsViewer({ demoMode, providers = [], showSourcePaths = true 
     setDetail(null);
     if (!agent.hasSkillMd) return;
     setDetailLoading(true);
-    fetch(apiUrl(`/api/agents?slug=${encodeURIComponent(agent.slug)}${agent.provider ? `&from=${encodeURIComponent(agent.provider)}` : ''}`, demoMode ?? false))
+    fetch(apiUrl(`/api/agents?slug=${encodeURIComponent(agent.slug)}${agent.providers?.[0] ? `&from=${encodeURIComponent(agent.providers[0])}` : ''}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => { setDetail(res.data ?? null); setDetailLoading(false); })
       .catch(() => setDetailLoading(false));
@@ -56,7 +56,7 @@ export function AgentsViewer({ demoMode, providers = [], showSourcePaths = true 
           </button>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-2xl font-semibold text-lens-text">{selected.name}</h1>
-            {selected.provider && <ProviderBadge id={selected.provider} providers={providers} />}
+            {selected.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
           </div>
           <div className="font-mono text-[11px] text-lens-text-faint mb-6">{selected.slug}</div>
 
@@ -132,7 +132,7 @@ export function AgentsViewer({ demoMode, providers = [], showSourcePaths = true 
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <Bot className="w-3.5 h-3.5 text-lens-text-dim shrink-0" />
                   <span className="font-medium text-lens-text">{agent.name}</span>
-                  {agent.provider && <ProviderBadge id={agent.provider} providers={providers} />}
+                  {agent.providers?.map(p => <ProviderBadge key={p} id={p} providers={providers} />)}
                 </div>
                 <div className="font-mono text-[10px] text-lens-text-faint mb-2">{agent.slug}</div>
                 {agent.description ? (
