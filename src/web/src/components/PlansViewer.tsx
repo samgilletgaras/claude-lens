@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ClipboardList, ArrowLeft, Search } from 'lucide-react';
@@ -20,6 +20,7 @@ export function PlansViewer({ demoMode, providers = [], provider, showSourcePath
   const [selected, setSelected] = useState<Plan | null>(null);
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const selectedFilenameRef = useRef<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -42,20 +43,27 @@ export function PlansViewer({ demoMode, providers = [], provider, showSourcePath
   function openPlan(plan: Plan) {
     setSelected(plan);
     setDetail(null);
+    selectedFilenameRef.current = plan.filename;
     setDetailLoading(true);
+    const filename = plan.filename;
     fetch(apiUrl(`/api/plans?file=${encodeURIComponent(plan.filename)}${plan.providers?.[0] ? `&from=${encodeURIComponent(plan.providers[0])}` : ''}`, !!demoMode))
       .then(res => res.json())
       .then(res => {
+        if (selectedFilenameRef.current !== filename) return;
         setDetail((res.data as PlanDetail[])?.[0] ?? null);
         setDetailLoading(false);
       })
-      .catch(() => setDetailLoading(false));
+      .catch(() => {
+        if (selectedFilenameRef.current !== filename) return;
+        setDetailLoading(false);
+      });
   }
 
   function closePlan() {
     setSelected(null);
     setDetail(null);
     setDetailLoading(false);
+    selectedFilenameRef.current = null;
   }
 
   if (selected) {

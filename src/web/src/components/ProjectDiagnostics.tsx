@@ -49,9 +49,11 @@ export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string;
 
   useEffect(() => {
     let ignore = false;
-    /* eslint-disable-next-line react-hooks/set-state-in-effect -- reset to loading state before async fetch */
+    /* eslint-disable react-hooks/set-state-in-effect -- reset to loading state before async fetch */
     setLoading(true);
     setError(null);
+    setStats(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
     fetch(apiUrl(`/api/stats?project=${encodeURIComponent(projectId)}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {

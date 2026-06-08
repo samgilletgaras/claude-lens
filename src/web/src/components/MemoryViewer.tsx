@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Brain, ArrowLeft, Search, ChevronRight } from 'lucide-react';
@@ -101,6 +101,7 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
   const [selected, setSelected] = useState<MemoryEntry | null>(null);
   const [detail, setDetail] = useState<MemoryEntryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const selectedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -123,20 +124,27 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
   function openEntry(entry: MemoryEntry) {
     setSelected(entry);
     setDetail(null);
+    const key = `${entry.project}/${entry.filename}`;
+    selectedKeyRef.current = key;
     setDetailLoading(true);
     fetch(apiUrl(`/api/memory?project=${encodeURIComponent(entry.project)}&file=${encodeURIComponent(entry.filename)}`, !!demoMode))
       .then(res => res.json())
       .then(res => {
+        if (selectedKeyRef.current !== key) return;
         setDetail((res.data as MemoryEntryDetail[])?.[0] ?? null);
         setDetailLoading(false);
       })
-      .catch(() => setDetailLoading(false));
+      .catch(() => {
+        if (selectedKeyRef.current !== key) return;
+        setDetailLoading(false);
+      });
   }
 
   function closeEntry() {
     setSelected(null);
     setDetail(null);
     setDetailLoading(false);
+    selectedKeyRef.current = null;
   }
 
   if (selected) {

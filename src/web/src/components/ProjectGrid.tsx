@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { FolderOpen, Search } from 'lucide-react';
 import type { ProjectSummary, ProviderInfo } from '../types';
-import { prettifyProjectName, formatRelative, slugify } from '../utils';
+import { prettifyProjectName, formatRelative } from '../utils';
+import { ProviderBadge } from './ProviderBadge';
 import { ProviderFilterBar } from './ProviderFilterBar';
 
 type ProjectSort = 'updated' | 'sessions' | 'name';
@@ -71,11 +72,7 @@ export function ProjectGrid({ projects, providers, provider, onOpen }: {
             <button key={proj.id} onClick={() => onOpen(proj.id)} className="bg-lens-surface border border-lens-border hover:border-lens-border-hi rounded-lg p-6 text-left transition-colors flex flex-col">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="font-medium text-lens-text text-lg">{prettifyProjectName(proj.id)}</span>
-                {proj.provider && (
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded border shrink-0 provider-badge provider-badge-${slugify(proj.provider)}`}>
-                    {providers.find(p => p.id === proj.provider)?.name ?? proj.provider}
-                  </span>
-                )}
+                {proj.provider && <ProviderBadge id={proj.provider} providers={providers} />}
               </div>
               <div className="text-xs text-lens-text-dim truncate mb-4" title={proj.fullPath}>{proj.fullPath}</div>
               <div className="mt-auto flex items-center justify-between text-xs text-lens-text-sub">

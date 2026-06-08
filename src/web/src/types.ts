@@ -207,6 +207,7 @@ export interface DiagnosticsStats {
   models: Record<string, number>;
   hooks: { success: number; failure: number; avgDurationMs: number };
   topProjects: { id: string; messageCount: number; tokenCount: number; provider?: string }[];
+  topTools: { name: string; count: number }[];
   activity: Record<string, number>;
   estimatedCostUsd: number;
   estimatedCostByProvider?: Record<string, number>; // set only under the "All Providers" view

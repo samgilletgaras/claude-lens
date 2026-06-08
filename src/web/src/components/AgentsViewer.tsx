@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, ArrowLeft, Search } from 'lucide-react';
@@ -20,36 +20,51 @@ export function AgentsViewer({ demoMode, providers = [], provider, showSourcePat
   const [selected, setSelected] = useState<Skill | null>(null);
   const [detail, setDetail] = useState<SkillDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const selectedSlugRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
     fetch(apiUrl('/api/agents', demoMode ?? false))
       .then(res => res.json())
       .then(res => {
+        if (ignore) return;
         if (res.error) throw new Error(res.error);
         setAgents(res.data || []);
         setLoading(false);
       })
       .catch(err => {
+        if (ignore) return;
         setError(err.message);
         setLoading(false);
       });
+    return () => { ignore = true; };
   }, [demoMode]);
 
   function openAgent(agent: Skill) {
     setSelected(agent);
     setDetail(null);
+    selectedSlugRef.current = agent.slug;
     if (!agent.hasSkillMd) return;
     setDetailLoading(true);
+    const slug = agent.slug;
     fetch(apiUrl(`/api/agents?slug=${encodeURIComponent(agent.slug)}${agent.providers?.[0] ? `&from=${encodeURIComponent(agent.providers[0])}` : ''}`, demoMode ?? false))
       .then(res => res.json())
-      .then(res => { setDetail(res.data ?? null); setDetailLoading(false); })
-      .catch(() => setDetailLoading(false));
+      .then(res => {
+        if (selectedSlugRef.current !== slug) return;
+        setDetail(res.data ?? null);
+        setDetailLoading(false);
+      })
+      .catch(() => {
+        if (selectedSlugRef.current !== slug) return;
+        setDetailLoading(false);
+      });
   }
 
   function closeAgent() {
     setSelected(null);
     setDetail(null);
     setDetailLoading(false);
+    selectedSlugRef.current = null;
   }
 
   if (selected !== null) {

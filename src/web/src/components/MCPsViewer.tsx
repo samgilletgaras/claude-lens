@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plug, ArrowLeft, Search, CheckCircle } from 'lucide-react';
 import type { MCPServer, MCPServerDetail, ProviderInfo } from '../types';
 import { apiUrl } from '../utils';
@@ -29,38 +29,50 @@ export function MCPsViewer({ demoMode, providers = [], provider, showSourcePaths
   const [selected, setSelected] = useState<MCPServer | null>(null);
   const [detail, setDetail] = useState<MCPServerDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const selectedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
     fetch(apiUrl('/api/mcps', demoMode ?? false))
       .then(res => res.json())
       .then(res => {
+        if (ignore) return;
         if (res.error) throw new Error(res.error);
         setServers(res.data || []);
         setLoading(false);
       })
       .catch(err => {
+        if (ignore) return;
         setError(err.message);
         setLoading(false);
       });
+    return () => { ignore = true; };
   }, [demoMode]);
 
   function openServer(server: MCPServer) {
     setSelected(server);
     setDetail(null);
+    selectedIdRef.current = server.id;
     setDetailLoading(true);
+    const id = server.id;
     fetch(apiUrl(`/api/mcps?server=${encodeURIComponent(server.id)}${server.providers?.[0] ? `&from=${encodeURIComponent(server.providers[0])}` : ''}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {
+        if (selectedIdRef.current !== id) return;
         setDetail(res.data ?? null);
         setDetailLoading(false);
       })
-      .catch(() => setDetailLoading(false));
+      .catch(() => {
+        if (selectedIdRef.current !== id) return;
+        setDetailLoading(false);
+      });
   }
 
   function closeServer() {
     setSelected(null);
     setDetail(null);
     setDetailLoading(false);
+    selectedIdRef.current = null;
   }
 
   if (selected !== null) {

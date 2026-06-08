@@ -15,7 +15,7 @@ export function getSessionDuration(conv: ConversationSummary): string | null {
   return formatDuration(conv.lastUpdated - conv.firstMessageTs);
 }
 
-export function exportSession(conv: ConversationSummary, messages: Message[], assistantLabel = 'Claude') {
+export function exportSession(conv: ConversationSummary, messages: Message[], assistantLabel = 'Assistant') {
   const lines: string[] = [`# Session\n\n*${new Date(conv.lastUpdated).toLocaleString()}*\n\n---\n`];
   [...messages].reverse().forEach(msg => {
     if (msg.role === 'user') {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Layers, ArrowLeft, Search, Zap } from 'lucide-react';
@@ -35,39 +35,51 @@ export function SkillsViewer({ demoMode, providers = [], provider, showSourcePat
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [skillDetail, setSkillDetail] = useState<SkillDetail | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
+  const selectedSlugRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
     fetch(apiUrl('/api/skills', demoMode ?? false))
       .then(res => res.json())
       .then(res => {
+        if (ignore) return;
         if (res.error) throw new Error(res.error);
         setSkills(res.data || []);
         setLoading(false);
       })
       .catch(err => {
+        if (ignore) return;
         setError(err.message);
         setLoading(false);
       });
+    return () => { ignore = true; };
   }, [demoMode]);
 
   function openSkill(skill: Skill) {
     setSelectedSkill(skill);
     setSkillDetail(null);
+    selectedSlugRef.current = skill.slug;
     if (!skill.hasSkillMd) return;
     setContentLoading(true);
+    const slug = skill.slug;
     fetch(apiUrl(`/api/skills?slug=${encodeURIComponent(skill.slug)}${skill.providers?.[0] ? `&from=${encodeURIComponent(skill.providers[0])}` : ''}`, demoMode ?? false))
       .then(res => res.json())
       .then(res => {
+        if (selectedSlugRef.current !== slug) return;
         setSkillDetail(res.data ?? null);
         setContentLoading(false);
       })
-      .catch(() => setContentLoading(false));
+      .catch(() => {
+        if (selectedSlugRef.current !== slug) return;
+        setContentLoading(false);
+      });
   }
 
   function closeSkill() {
     setSelectedSkill(null);
     setSkillDetail(null);
     setContentLoading(false);
+    selectedSlugRef.current = null;
   }
 
   if (selectedSkill !== null) {

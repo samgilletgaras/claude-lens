@@ -7,7 +7,7 @@ import { ProjectGrid } from './components/ProjectGrid';
 import { SessionView } from './components/SessionView';
 import { NavButton } from './components/Nav';
 import { NAV_ITEMS, SIMPLE_VIEWS } from './components/navConfig';
-import { prettifyProjectName, formatRelative, fmt, apiUrl, slugify, iconFor } from './utils';
+import { prettifyProjectName, formatRelative, fmt, apiUrl, slugify, iconFor, PROVIDER_MIGRATIONS } from './utils';
 import { getSessionDuration } from './session';
 import { SESSION_PAGE_SIZE, NO_CAPABILITIES, parseHash, buildHash } from './routing';
 import type { AppView } from './routing';
@@ -40,10 +40,9 @@ function App() {
     return 'default';
   });
   const [provider, setProvider] = useState<Provider | null>(() => {
-    const MIGRATIONS: Record<string, Provider> = { ghcopilot: 'ghcopilot-vscode' };
     const raw = localStorage.getItem('lens-provider');
     if (!raw) return null;
-    const p = MIGRATIONS[raw] ?? raw;
+    const p = PROVIDER_MIGRATIONS[raw] ?? raw;
     if (p !== raw) localStorage.setItem('lens-provider', p);
     return p;
   });
@@ -71,9 +70,11 @@ function App() {
   }
 
   useEffect(() => {
+    let ignore = false;
     fetch('/api/config')
       .then(r => r.json())
       .then(r => {
+        if (ignore) return;
         const list: ProviderInfo[] = r.data?.providers ?? [];
         setProviders(list);
         // Resolve the active provider: keep the saved one if it still exists,
@@ -92,6 +93,7 @@ function App() {
         }
       })
       .catch(() => {});
+    return () => { ignore = true; };
   }, []);
 
   useEffect(() => {

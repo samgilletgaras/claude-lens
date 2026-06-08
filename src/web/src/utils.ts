@@ -30,7 +30,7 @@ export function formatDuration(ms: number): string {
   return `${h}h ${min % 60}m`;
 }
 
-const PROVIDER_MIGRATIONS: Record<string, string> = { ghcopilot: 'ghcopilot-vscode' };
+export const PROVIDER_MIGRATIONS: Record<string, string> = { ghcopilot: 'ghcopilot-vscode' };
 
 // CSS-safe slug for a provider id, e.g. 'ghcopilot-vscode' -> 'ghcopilotvscode'.
 // Used to pick the per-provider badge class defined in index.css.
