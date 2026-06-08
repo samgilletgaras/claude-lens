@@ -65,6 +65,7 @@ function App() {
   function refresh() {
     setRefreshing(true);
     setSessionsPage(0);
+    setSessionsTotal(0);
     setRefreshKey(k => k + 1);
     setTimeout(() => setRefreshing(false), 600);
   }
@@ -98,6 +99,8 @@ function App() {
 
   useEffect(() => {
     if (!provider) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale error before re-fetch
+    setError(null);
     fetch(apiUrl('/api/projects', demoMode))
       .then(res => res.json())
       .then(res => {
@@ -198,7 +201,7 @@ function App() {
   function handleIncludeVscodeInsidersChange(v: boolean) {
     setIncludeVscodeInsiders(v);
     localStorage.setItem('lens-vscode-insiders', String(v));
-    fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ includeVscodeInsiders: v }) }).catch(() => {});
+    fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ includeVscodeInsiders: v }) }).catch(() => { console.warn('[ai-lens] Failed to persist VSCode Insiders setting to backend'); });
     refresh();
   }
 
@@ -350,7 +353,7 @@ function App() {
                       const localCmdMatch = firstText.match(/<command-name>(.*?)<\/command-name>/);
                       if (localCmdMatch) firstText = localCmdMatch[1];
                       else if (cmdMatch) firstText = cmdMatch[1];
-                      else firstText = firstText.replace(/<[\s\S]*?>/g, '').trim();
+                      else firstText = firstText.replace(/<[a-zA-Z/][^>]*>/g, '').trim();
                       firstText = firstText.split('\n')[0].trim() || 'New Session';
                     }
                     const totalTok = conv.tokens ? conv.tokens.input + conv.tokens.output : 0;

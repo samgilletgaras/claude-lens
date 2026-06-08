@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Message, AttachmentContent } from '../types';
@@ -17,7 +17,7 @@ function CopyButton({ text }: { text: string }) {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    }).catch(() => {});
   }
   return (
     <button
@@ -75,11 +75,10 @@ function PipelineEvent({
   const [expanded, setExpanded] = useState(false);
   const hasContent = !!content;
 
-  const [prevSignal, setPrevSignal] = useState(collapseSignal);
-  if (collapseSignal !== prevSignal) {
-    setPrevSignal(collapseSignal);
-    setExpanded(false);
-  }
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- responding to an external collapse signal
+    if (collapseSignal && collapseSignal > 0) setExpanded(false);
+  }, [collapseSignal]);
 
   return (
     <div className="relative flex w-full mb-2 group items-start">
@@ -135,10 +134,10 @@ function PipelineEvent({
   );
 }
 
-function AvatarBlock({ isUser, node, timestamp }: { isUser: boolean; node: React.ReactNode; timestamp?: number | null }) {
+function AvatarBlock({ isUser, node, timestamp, assistantLabel }: { isUser: boolean; node: React.ReactNode; timestamp?: number | null; assistantLabel?: string }) {
   const textColor = isUser ? 'text-lens-accent/70' : 'text-emerald-500/70';
   const bgColor   = isUser ? 'bg-lens-accent'      : 'bg-emerald-500';
-  const label     = isUser ? 'User'                : 'Assistant';
+  const label     = isUser ? 'User'                : (assistantLabel ?? 'Assistant');
 
   return (
     <div className="relative flex w-full mb-2 group pt-2 pb-6 items-start">
@@ -168,7 +167,7 @@ function AvatarBlock({ isUser, node, timestamp }: { isUser: boolean; node: React
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export function MessageBubble({ message, collapseSignal }: { message: Message; collapseSignal?: number }) {
+export function MessageBubble({ message, collapseSignal, assistantLabel }: { message: Message; collapseSignal?: number; assistantLabel?: string }) {
   const ts = message.timestamp ?? undefined;
 
   // ── Pipeline events (role decides icon + colors, no block iteration) ────────
@@ -277,6 +276,7 @@ export function MessageBubble({ message, collapseSignal }: { message: Message; c
     <AvatarBlock
       isUser={message.role === 'user'}
       timestamp={ts}
+      assistantLabel={assistantLabel}
       node={<MarkdownBlock text={text} />}
     />
   );

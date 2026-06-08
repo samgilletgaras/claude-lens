@@ -24,7 +24,7 @@ export function AgentsViewer({ demoMode, providers = [], provider, showSourcePat
 
   useEffect(() => {
     let ignore = false;
-    fetch(apiUrl('/api/agents', demoMode ?? false))
+    fetch(apiUrl('/api/agents', !!demoMode))
       .then(res => res.json())
       .then(res => {
         if (ignore) return;
@@ -47,7 +47,7 @@ export function AgentsViewer({ demoMode, providers = [], provider, showSourcePat
     if (!agent.hasSkillMd) return;
     setDetailLoading(true);
     const slug = agent.slug;
-    fetch(apiUrl(`/api/agents?slug=${encodeURIComponent(agent.slug)}${agent.providers?.[0] ? `&from=${encodeURIComponent(agent.providers[0])}` : ''}`, demoMode ?? false))
+    fetch(apiUrl(`/api/agents?slug=${encodeURIComponent(agent.slug)}${agent.providers?.[0] ? `&from=${encodeURIComponent(agent.providers[0])}` : ''}`, !!demoMode))
       .then(res => res.json())
       .then(res => {
         if (selectedSlugRef.current !== slug) return;

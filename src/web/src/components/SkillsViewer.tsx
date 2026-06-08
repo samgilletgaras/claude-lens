@@ -39,7 +39,7 @@ export function SkillsViewer({ demoMode, providers = [], provider, showSourcePat
 
   useEffect(() => {
     let ignore = false;
-    fetch(apiUrl('/api/skills', demoMode ?? false))
+    fetch(apiUrl('/api/skills', !!demoMode))
       .then(res => res.json())
       .then(res => {
         if (ignore) return;
@@ -62,7 +62,7 @@ export function SkillsViewer({ demoMode, providers = [], provider, showSourcePat
     if (!skill.hasSkillMd) return;
     setContentLoading(true);
     const slug = skill.slug;
-    fetch(apiUrl(`/api/skills?slug=${encodeURIComponent(skill.slug)}${skill.providers?.[0] ? `&from=${encodeURIComponent(skill.providers[0])}` : ''}`, demoMode ?? false))
+    fetch(apiUrl(`/api/skills?slug=${encodeURIComponent(skill.slug)}${skill.providers?.[0] ? `&from=${encodeURIComponent(skill.providers[0])}` : ''}`, !!demoMode))
       .then(res => res.json())
       .then(res => {
         if (selectedSlugRef.current !== slug) return;

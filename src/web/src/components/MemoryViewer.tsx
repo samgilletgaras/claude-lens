@@ -9,6 +9,7 @@ import { ProviderFilterBar } from './ProviderFilterBar';
 import { LoadingSpinner } from './LoadingSpinner';
 
 type MemoryType = 'user' | 'feedback' | 'project' | 'reference';
+const NO_TYPE_FILTER = '__none__';
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   user:      { bg: 'bg-purple-900/40',  text: 'text-purple-300',  border: 'border-purple-800/50' },
@@ -88,7 +89,7 @@ function ProjectGroups({ entries, onOpen, providers }: { entries: MemoryEntry[];
   );
 }
 
-type MemorySort = 'recent' | 'az';
+type MemorySort = 'az';
 
 export function MemoryViewer({ demoMode, providers = [], provider, showSourcePaths = true }: { demoMode?: boolean; providers?: ProviderInfo[]; provider?: string | null; showSourcePaths?: boolean }) {
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
@@ -131,7 +132,7 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
       .then(res => res.json())
       .then(res => {
         if (selectedKeyRef.current !== key) return;
-        setDetail((res.data as MemoryEntryDetail[])?.[0] ?? null);
+        setDetail(Array.isArray(res.data) ? (res.data[0] as MemoryEntryDetail ?? null) : (res.data as MemoryEntryDetail ?? null));
         setDetailLoading(false);
       })
       .catch(() => {
@@ -231,8 +232,8 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
   const untypedCount = providerFiltered.filter(e => !e.type || !ALL_TYPES.includes(e.type as MemoryType)).length;
 
   const filtered = providerFiltered.filter(e => {
-    if (typeFilter === '__none__' && e.type && ALL_TYPES.includes(e.type as MemoryType)) return false;
-    if (typeFilter && typeFilter !== '__none__' && e.type !== typeFilter) return false;
+    if (typeFilter === NO_TYPE_FILTER && e.type && ALL_TYPES.includes(e.type as MemoryType)) return false;
+    if (typeFilter && typeFilter !== NO_TYPE_FILTER && e.type !== typeFilter) return false;
     if (!q) return true;
     return (
       e.name.toLowerCase().includes(q) ||
@@ -304,8 +305,8 @@ export function MemoryViewer({ demoMode, providers = [], provider, showSourcePat
             })}
             {untypedCount > 0 && (
               <button
-                onClick={() => setTypeFilter(typeFilter === '__none__' ? null : '__none__')}
-                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${typeFilter === '__none__' ? 'bg-lens-border text-lens-text font-medium border-lens-border-hi' : 'bg-lens-border border-transparent text-lens-text-sub hover:text-lens-text'}`}
+                onClick={() => setTypeFilter(typeFilter === NO_TYPE_FILTER ? null : NO_TYPE_FILTER)}
+                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${typeFilter === NO_TYPE_FILTER ? 'bg-lens-border text-lens-text font-medium border-lens-border-hi' : 'bg-lens-border border-transparent text-lens-text-sub hover:text-lens-text'}`}
               >
                 No type ({untypedCount})
               </button>

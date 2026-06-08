@@ -18,6 +18,7 @@ export function prettifyProjectName(str: string): string {
   // Strip an "All Providers" pack prefix (`<provider>:::<id>`) — uniform transform.
   const sepIdx = str.indexOf(':::');
   const id = sepIdx === -1 ? str : str.slice(sepIdx + 3);
+  if (!id) return 'Unknown Project';
   const folderName = id.split('/').pop() || id;
   return folderName.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }

@@ -34,7 +34,10 @@ export function exportSession(conv: ConversationSummary, messages: Message[], as
   a.href = url;
   a.download = `session-${conv.id.slice(0, 8)}.md`;
   document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  try {
+    a.click();
+  } finally {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }

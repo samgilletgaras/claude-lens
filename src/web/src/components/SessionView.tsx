@@ -142,7 +142,7 @@ export function SessionView({ conv, messages, loading, assistantLabel, showSourc
               id={`msg-${i}`}
               className={searchQ && matchedIndices.length > 0 && !matchedIndices.includes(i) ? 'opacity-30 transition-opacity duration-150' : 'transition-opacity duration-150'}
             >
-              <MessageBubble message={msg} collapseSignal={collapseSignal} />
+              <MessageBubble message={msg} collapseSignal={collapseSignal} assistantLabel={assistantLabel} />
             </div>
           ))}
         </div>
