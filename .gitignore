@@ -1,7 +1,10 @@
 # AI tooling
+.agents/
 .claude/
 .cursor/
 .github/
+.cor/
+skills-lock.json
 
 # Dependencies
 node_modules/

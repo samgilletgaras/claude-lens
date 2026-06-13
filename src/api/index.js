@@ -18,6 +18,7 @@ import * as skills from './readers/skills.js';
 import * as agents from './readers/agents.js';
 import * as memory from './readers/memory.js';
 import * as plans from './readers/plans.js';
+import * as systemPrompts from './readers/system-prompts.js';
 
 // To add a new provider: create providers/x.js, import it here, add to PROVIDERS.
 const PROVIDERS = {
@@ -243,6 +244,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try { ok({ data: await memory.getMemory(providerName, project, filename) }); } catch(e) { err(e.message); }
+    return;
+  }
+
+  if (q.pathname === '/api/system-prompts') {
+    try { ok({ data: await systemPrompts.getSystemPrompts(providerName) }); } catch(e) { err(e.message); }
     return;
   }
 

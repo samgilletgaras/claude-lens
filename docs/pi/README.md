@@ -242,6 +242,17 @@ Pi produces the second richest timeline after Claude Code:
 
 ---
 
+### System Prompts — `pi-system-prompts.js`
+Reads three files from `~/.pi/agent/` (symlinks followed automatically):
+
+| File | Role |
+|---|---|
+| `AGENTS.md` | Global context — always loaded by Pi on startup |
+| `SYSTEM.md` | Custom system prompt — replaces Pi's default prompt when present |
+| `APPEND_SYSTEM.md` | Appended system prompt — merged after the default prompt |
+
+Only existing files are returned. Registered under the `hasSystemPrompts` capability.
+
 ## Availability check
 
 `isAvailable()` returns `true` if `~/.pi/agent/sessions/` exists (Pi creates this

@@ -1,12 +1,13 @@
 import type { ProviderCapabilities } from './types';
 
 export const SESSION_PAGE_SIZE = 20;
-export const VALID_VIEWS = ['history', 'logs', 'skills', 'agents', 'mcps', 'memory', 'plans', 'settings'] as const;
+export const VALID_VIEWS = ['history', 'logs', 'skills', 'agents', 'mcps', 'memory', 'plans', 'system-prompts', 'settings'] as const;
 export type AppView = typeof VALID_VIEWS[number];
 
 export const NO_CAPABILITIES: ProviderCapabilities = {
   hasHistory: false, hasStats: false, hasLogs: false, hasSkills: false,
   hasAgents: false, hasMcps: false, hasMemory: false, hasPlans: false,
+  hasSystemPrompts: false,
 };
 
 export function parseHash(hash: string): { view: AppView; projectId: string | null; sessionId: string | null } {

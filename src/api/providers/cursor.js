@@ -6,12 +6,13 @@ import '../readers/cursor/cursor-skills.js';
 import '../readers/cursor/cursor-mcps.js';
 import '../readers/cursor/cursor-plans.js';
 import '../readers/cursor/cursor-agents.js';
+import '../readers/cursor/cursor-system-prompts.js';
 
 export const name = 'Cursor';
 export const icon = 'MousePointer2';
 export const capabilities = {
   hasHistory: true, hasStats: true, hasLogs: false,
   hasSkills: true, hasAgents: true, hasMcps: true,
-  hasMemory: false, hasPlans: true,
+  hasMemory: false, hasPlans: true, hasSystemPrompts: true,
 };
 export const isAvailable = async () => fs.existsSync(CURSOR_DATA_DIR);

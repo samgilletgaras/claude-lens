@@ -9,6 +9,16 @@ export interface ProviderCapabilities {
   hasMcps: boolean;
   hasMemory: boolean;
   hasPlans: boolean;
+  hasSystemPrompts: boolean;
+}
+
+export interface SystemPromptEntry {
+  label: string;
+  filename: string;
+  sourcePath: string;
+  content: string;
+  exists: boolean;
+  provider?: string; // source provider id, set only under the "All Providers" view
 }
 
 export interface ProviderInfo {

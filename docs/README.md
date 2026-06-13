@@ -38,7 +38,7 @@ API; the frontend is a React SPA that renders the API responses and is fully
 ```
 ┌─────────────────────────────┐        ┌──────────────────────────────┐
 │  src/web  (React + Vite)    │  HTTP  │  src/api  (Node, plain JS)   │
-│  - 8 views, hash routing    │ ─────► │  - 13 endpoints              │
+│  - 8 views, hash routing    │ ─────► │  - 14 endpoints              │
 │  - provider-agnostic UI     │ /api/* │  - PROVIDERS registry        │
 │  - reads /api/config only   │ ◄───── │  - readers self-register     │
 └─────────────────────────────┘        └──────────────┬───────────────┘
@@ -103,7 +103,7 @@ populate it too; cloud MCPs have no file). The frontend gates all disclosures on
 `showSourcePaths` user preference (`localStorage` key `lens-show-source-paths`,
 default off), toggled in Settings.
 
-#### The 13 endpoints
+#### The 14 endpoints
 
 | Endpoint | Returns |
 |----------|---------|
@@ -119,6 +119,7 @@ default off), toggled in Settings.
 | `GET /api/memory[?project=&file=]` | memory files |
 | `GET /api/stats[?project=]` | aggregate or per-project token/tool/activity stats |
 | `GET /api/plans[?file=]` | plan markdown files (provider-agnostic) |
+| `GET /api/system-prompts` | global system prompt / instruction files each provider picks up (`[{ label, filename, sourcePath, content, exists }]`) |
 | `POST /api/settings` | persists user settings (JSON body `{ patch: { key: value } }`); whitelisted keys only |
 
 ### Normalized message contract

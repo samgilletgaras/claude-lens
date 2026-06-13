@@ -7,13 +7,14 @@ import '../readers/pi/pi-logs.js';
 import '../readers/pi/pi-skills.js';
 import '../readers/pi/pi-agents.js';
 import '../readers/pi/pi-mcps.js';
+import '../readers/pi/pi-system-prompts.js';
 
 export const name = 'Pi';
 export const icon = 'Terminal';
 export const capabilities = {
   hasHistory: true, hasStats: true, hasLogs: true,
   hasSkills: true, hasAgents: true, hasMcps: true,
-  hasMemory: false, hasPlans: false,
+  hasMemory: false, hasPlans: false, hasSystemPrompts: true,
 };
 
 export const isAvailable = async () => fs.existsSync(PI_SESSIONS_DIR);

@@ -113,6 +113,9 @@ Cursor slugifies workspace paths, which is lossy for directories with hyphens in
 
 For slugs without a matching `workspace.json` entry (e.g. `empty-window`), the reader falls back to an approximate reconstruction: `'/' + slug.replace(/-/g, '/')`.
 
+### System Prompts — `cursor-system-prompts.js`
+Globs `~/.cursor/rules/*.mdc`. Each `.mdc` file is parsed: YAML frontmatter is stripped; the `description` frontmatter field (if present) becomes the entry label; the body is the rendered content. Returns an empty list if the directory does not exist. Registered under the `hasSystemPrompts` capability.
+
 ## Availability check
 
 `isAvailable()` returns `true` if `~/.cursor/` exists. On macOS the app data lives under `~/Library/Application Support/Cursor/User/` for workspaceStorage, but the Cursor-specific data (`projects/`, `plans/`, etc.) is always at `~/.cursor/`.

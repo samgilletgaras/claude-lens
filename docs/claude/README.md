@@ -169,6 +169,9 @@ Reads `~/.claude/projects/<proj>/memory/*.md` (per project). Parses frontmatter
 (`name`, `description`, `type`) plus indented `key: value` lines; `MEMORY.md` is the
 index. Grouped under the same project id as that project's sessions.
 
+### System Prompts — `claude-system-prompts.js`
+Reads `~/.claude/CLAUDE.md` (global instructions). Returns a single entry; `exists: false` if the file is absent. Registered under the `hasSystemPrompts` capability.
+
 ### Plans — `readers/claude/claude-plans.js`
 Reads `~/.claude/plans/*.md`, sorted by mtime desc. Title from frontmatter `name`
 or first `#` heading; snippet from first real content line. Registers into the
