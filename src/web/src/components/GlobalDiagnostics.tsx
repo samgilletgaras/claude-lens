@@ -28,16 +28,17 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function BarRow({ label, value, max, color = 'bg-lens-accent/40' }: { label: React.ReactNode; value: number; max: number; color?: string }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+function BarRow({ label, value, max, total, color = 'bg-lens-accent/40' }: { label: React.ReactNode; value: number; max: number; total?: number; color?: string }) {
+  const barPct = max > 0 ? Math.round((value / max) * 100) : 0;
+  const displayPct = (total ?? max) > 0 ? Math.round((value / (total ?? max)) * 100) : 0;
   return (
     <div className="mb-2 last:mb-0 group">
       <div className="flex justify-between items-center text-xs text-lens-text-sub group-hover:text-lens-text mb-1 transition-colors">
         <div className="flex items-center gap-1.5 min-w-0 mr-2">{label}</div>
-        <span className="tabular-nums shrink-0">{value.toLocaleString()} <span className="text-lens-text-faint group-hover:text-lens-text-sub">({pct}%)</span></span>
+        <span className="tabular-nums shrink-0">{value.toLocaleString()} <span className="text-lens-text-faint group-hover:text-lens-text-sub">({displayPct}%)</span></span>
       </div>
       <div className="h-1.5 bg-lens-border rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+        <div className={`h-full ${color} rounded-full`} style={{ width: `${barPct}%` }} />
       </div>
     </div>
   );
@@ -100,12 +101,16 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
   const stopReasons = stats.stopReasons ?? {};
   const sortedStopReasons = Object.entries(stopReasons).sort((a, b) => b[1] - a[1]);
   const maxStopReason = Math.max(...sortedStopReasons.map(([, v]) => v), 1);
+  const totalStopReasons = sortedStopReasons.reduce((s, [, v]) => s + v, 0);
   const sortedModels = Object.entries(stats.models).sort((a, b) => b[1] - a[1]);
   const isAllProviders = !provider || provider === 'all';
   const maxModel = Math.max(...sortedModels.map(([, v]) => v), 1);
+  const totalModel = sortedModels.reduce((s, [, v]) => s + v, 0);
   const maxToken = Math.max(stats.tokens.input, stats.tokens.output, stats.tokens.cacheRead, stats.tokens.cacheCreation, 1);
+  const totalTokenBreakdown = stats.tokens.input + stats.tokens.output + stats.tokens.cacheRead + stats.tokens.cacheCreation;
   const topProjects = stats.topProjects ?? [];
   const topTools = stats.topTools ?? [];
+  const totalTools = topTools.reduce((s, t) => s + t.count, 0);
   const hasTokensInProjects = topProjects.some(p => p.tokenCount > 0);
   const maxProjectMsgs = Math.max(...topProjects.map(p => p.messageCount), 1);
   const hasHooks = stats.hooks.success + stats.hooks.failure > 0;
@@ -206,6 +211,7 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
                       }
                       value={count}
                       max={maxModel}
+                      total={totalModel}
                     />
                   );
                 })}
@@ -228,6 +234,7 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
                       }
                       value={count}
                       max={Math.max(...topTools.map(x => x.count), 1)}
+                      total={totalTools}
                       color="bg-lens-accent/40"
                     />
                   );
@@ -242,10 +249,10 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
           <div className={`grid grid-cols-1 gap-4 mb-4 ${hasBothTokenHook ? 'md:grid-cols-2' : ''}`}>
             {hasTokens && (
               <Panel title="Token Breakdown">
-                <BarRow label="Input" value={stats.tokens.input} max={maxToken} color="bg-violet-500/40" />
-                <BarRow label="Output" value={stats.tokens.output} max={maxToken} color="bg-emerald-500/40" />
-                <BarRow label="Cache Read" value={stats.tokens.cacheRead} max={maxToken} color="bg-sky-500/40" />
-                <BarRow label="Cache Created" value={stats.tokens.cacheCreation} max={maxToken} color="bg-lens-border/80" />
+                <BarRow label="Input" value={stats.tokens.input} max={maxToken} total={totalTokenBreakdown} color="bg-violet-500/40" />
+                <BarRow label="Output" value={stats.tokens.output} max={maxToken} total={totalTokenBreakdown} color="bg-emerald-500/40" />
+                <BarRow label="Cache Read" value={stats.tokens.cacheRead} max={maxToken} total={totalTokenBreakdown} color="bg-sky-500/40" />
+                <BarRow label="Cache Created" value={stats.tokens.cacheCreation} max={maxToken} total={totalTokenBreakdown} color="bg-lens-border/80" />
               </Panel>
             )}
             {hasHooks && (
@@ -289,7 +296,7 @@ export function GlobalDiagnostics({ demoMode, providers = [], provider }: { demo
           <div className="mb-4">
             <Panel title="Stop Reasons">
               {orderedStopReasons.map(([reason, count]) => (
-                <BarRow key={reason} label={reason} value={count} max={maxStopReason} color="bg-lens-accent/40" />
+                <BarRow key={reason} label={reason} value={count} max={maxStopReason} total={totalStopReasons} color="bg-lens-accent/40" />
               ))}
             </Panel>
           </div>

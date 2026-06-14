@@ -27,16 +27,17 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function BarRow({ label, value, max, color = 'bg-lens-accent/40', compact = false }: { label: string; value: number; max: number; color?: string; compact?: boolean }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+function BarRow({ label, value, max, total, color = 'bg-lens-accent/40', compact = false }: { label: string; value: number; max: number; total?: number; color?: string; compact?: boolean }) {
+  const barPct = max > 0 ? Math.round((value / max) * 100) : 0;
+  const displayPct = (total ?? max) > 0 ? Math.round((value / (total ?? max)) * 100) : 0;
   return (
     <div className={`group ${compact ? 'mb-1 last:mb-0' : 'mb-2 last:mb-0'}`}>
       <div className={`flex justify-between items-center text-lens-text-sub group-hover:text-lens-text mb-0.5 transition-colors ${compact ? 'text-[11px]' : 'text-xs'} mb-1`}>
         <span className="truncate mr-2 max-w-[180px]">{label}</span>
-        <span className="tabular-nums shrink-0">{value.toLocaleString()} <span className="text-lens-text-faint group-hover:text-lens-text-sub">({pct}%)</span></span>
+        <span className="tabular-nums shrink-0">{value.toLocaleString()} <span className="text-lens-text-faint group-hover:text-lens-text-sub">({displayPct}%)</span></span>
       </div>
       <div className={`bg-lens-border rounded-full overflow-hidden ${compact ? 'h-1' : 'h-1.5'}`}>
-        <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+        <div className={`h-full ${color} rounded-full`} style={{ width: `${barPct}%` }} />
       </div>
     </div>
   );
@@ -93,8 +94,10 @@ export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string;
   const anyEstimated = inputEstimated || outputEstimated;
   const topTools = stats.topTools ?? [];
   const maxTool = Math.max(...topTools.map(t => t.count), 1);
+  const totalTools = topTools.reduce((s, t) => s + t.count, 0);
   const sortedModels = Object.entries(stats.models).sort((a, b) => b[1] - a[1]);
   const maxModel = Math.max(...sortedModels.map(([, v]) => v), 1);
+  const totalModel = sortedModels.reduce((s, [, v]) => s + v, 0);
   const hasBothModelsTool = sortedModels.length > 0 && topTools.length > 0;
 
   return (
@@ -160,14 +163,14 @@ export function ProjectDiagnostics({ projectId, demoMode }: { projectId: string;
             {sortedModels.length > 0 && (
               <Panel title="Top Models">
                 {sortedModels.map(([model, count]) => (
-                  <BarRow key={model} label={model} value={count} max={maxModel} compact />
+                  <BarRow key={model} label={model} value={count} max={maxModel} total={totalModel} compact />
                 ))}
               </Panel>
             )}
             {topTools.length > 0 && (
               <Panel title="Top Tools">
                 {topTools.map(t => (
-                  <BarRow key={t.name} label={t.name} value={t.count} max={maxTool} color="bg-lens-accent/40" compact />
+                  <BarRow key={t.name} label={t.name} value={t.count} max={maxTool} total={totalTools} color="bg-lens-accent/40" compact />
                 ))}
               </Panel>
             )}
